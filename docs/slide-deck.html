@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How we're rebuilding search — All-hands</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --bg-elev: #14181d;
+    --ink: #f5f5f4;
+    --ink-dim: #a8a29e;
+    --ink-faint: #57534e;
+    --rule: #292524;
+    --accent: #f97316;       /* warm amber for emphasis */
+    --accent-soft: #fb923c;
+    --bad: #ef4444;
+    --good: #22c55e;
+    --info: #38bdf8;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* Deck layout */
+  .deck {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    padding: clamp(48px, 6vw, 96px) clamp(48px, 8vw, 144px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease-out;
+  }
+  .slide[data-active="true"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Display typography */
+  .eyebrow {
+    font-size: clamp(13px, 1.1vw, 16px);
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 clamp(20px, 2vw, 32px) 0;
+  }
+
+  h1.headline {
+    font-size: clamp(56px, 7.5vw, 104px);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    margin: 0 0 clamp(24px, 2.5vw, 40px) 0;
+    max-width: 22ch;
+  }
+  h1.headline em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  h2.section {
+    font-size: clamp(48px, 6vw, 84px);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    margin: 0 0 clamp(28px, 3vw, 48px) 0;
+    max-width: 20ch;
+  }
+
+  .lede {
+    font-size: clamp(22px, 2vw, 30px);
+    line-height: 1.4;
+    color: var(--ink-dim);
+    max-width: 38ch;
+    margin: 0;
+  }
+
+  /* Cover meta */
+  .cover-meta {
+    display: flex;
+    gap: clamp(32px, 4vw, 64px);
+    margin-top: auto;
+    padding-top: clamp(40px, 5vw, 64px);
+    border-top: 1px solid var(--rule);
+    font-size: clamp(15px, 1.2vw, 18px);
+  }
+  .cover-meta .label {
+    display: block;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.78em;
+    margin-bottom: 6px;
+  }
+  .cover-meta .value {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* Stat blocks (problem slide) */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: clamp(24px, 3vw, 48px);
+    margin-top: clamp(32px, 4vw, 56px);
+  }
+  .stat {
+    border-left: 3px solid var(--accent);
+    padding-left: clamp(16px, 1.5vw, 24px);
+  }
+  .stat .num {
+    font-size: clamp(40px, 4.5vw, 64px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .stat .lbl {
+    font-size: clamp(14px, 1.1vw, 17px);
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+
+  /* Bullet list (sparse) */
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: clamp(20px, 2.5vw, 36px);
+    margin-top: clamp(20px, 2vw, 32px);
+  }
+  .pillar {
+    border-top: 1px solid var(--rule);
+    padding-top: clamp(16px, 1.5vw, 24px);
+  }
+  .pillar .tag {
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .pillar .body {
+    font-size: clamp(18px, 1.6vw, 24px);
+    line-height: 1.35;
+    color: var(--ink);
+  }
+
+  /* Architecture diagram */
+  .arch {
+    margin-top: clamp(20px, 2.5vw, 36px);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(16px, 1.5vw, 24px);
+    align-items: stretch;
+  }
+  .arch-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: clamp(20px, 2vw, 28px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .arch-card .name {
+    font-size: clamp(20px, 1.8vw, 26px);
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .arch-card .hint {
+    font-size: clamp(14px, 1vw, 16px);
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+  .arch-card.accent {
+    border-color: var(--accent);
+    background: linear-gradient(180deg, rgba(249,115,22,0.08), transparent);
+  }
+
+  /* Rollout phases */
+  .phases {
+    margin-top: clamp(24px, 3vw, 40px);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .phase {
+    padding: clamp(20px, 2vw, 28px) clamp(16px, 1.5vw, 24px);
+    border-right: 1px solid var(--rule);
+    position: relative;
+  }
+  .phase:last-child { border-right: none; }
+  .phase .step {
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .phase .pct {
+    font-size: clamp(36px, 4vw, 56px);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+  }
+  .phase .desc {
+    font-size: clamp(14px, 1.05vw, 17px);
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+
+  /* Risks/asks slide */
+  .risks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(24px, 3vw, 56px);
+    margin-top: clamp(24px, 3vw, 40px);
+  }
+  .risk-card {
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: clamp(24px, 2.5vw, 36px);
+    background: var(--bg-elev);
+  }
+  .risk-card .kind {
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .risk-card.warn .kind { color: var(--accent-soft); }
+  .risk-card.ask .kind { color: var(--info); }
+  .risk-card .title {
+    font-size: clamp(22px, 2.2vw, 32px);
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+  .risk-card .ask-text {
+    font-size: clamp(15px, 1.2vw, 19px);
+    color: var(--ink-dim);
+    line-height: 1.45;
+  }
+
+  /* Slide chrome */
+  .chrome {
+    position: fixed;
+    bottom: 24px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 clamp(48px, 6vw, 96px);
+    pointer-events: none;
+    z-index: 10;
+  }
+  .deck-title {
+    font-size: 13px;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+  }
+  .counter {
+    font-size: 13px;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+  .counter strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* Progress bar */
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: var(--accent);
+    width: 0%;
+    transition: width 200ms ease-out;
+    z-index: 20;
+  }
+
+  /* Nav buttons (visible focusable; live alongside keyboard) */
+  .nav {
+    position: fixed;
+    bottom: 22px;
+    right: clamp(48px, 6vw, 96px);
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+    z-index: 11;
+  }
+  .nav button {
+    background: var(--bg-elev);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 150ms, border-color 150ms;
+  }
+  .nav button:hover { background: #1c2127; border-color: var(--ink-faint); }
+  .nav button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .nav button[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  /* Hint */
+  .hint-bar {
+    position: fixed;
+    top: 24px;
+    right: clamp(48px, 6vw, 96px);
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hint-bar kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    background: var(--bg-elev);
+    margin: 0 2px;
+  }
+
+  /* Print: one slide per page */
+  @media print {
+    @page { size: 16in 9in; margin: 0; }
+    html, body { overflow: visible; height: auto; background: white; color: #111; }
+    .slide {
+      position: relative;
+      opacity: 1 !important;
+      pointer-events: auto;
+      page-break-after: always;
+      width: 100%;
+      height: 100vh;
+      color: #111;
+    }
+    .slide h1.headline em { color: var(--accent); }
+    .chrome, .nav, .hint-bar, .progress { display: none; }
+  }
+
+  /* Small screens: keep readable */
+  @media (max-width: 720px) {
+    .arch, .risks { grid-template-columns: 1fr; }
+    .phases { grid-template-columns: 1fr 1fr; }
+    .phase:nth-child(2) { border-right: none; }
+    .phase:nth-child(1), .phase:nth-child(2) { border-bottom: 1px solid var(--rule); }
+    .cover-meta { flex-wrap: wrap; gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<div class="hint-bar" aria-hidden="true">
+  <kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>Space</kbd> to navigate
+</div>
+
+<main class="deck" id="deck" aria-label="Slide deck: How we're rebuilding search">
+
+  <!-- Slide 1: Cover -->
+  <section class="slide" data-active="true" aria-label="Slide 1: Cover">
+    <p class="eyebrow">All-Hands &middot; Engineering</p>
+    <h1 class="headline">How we're <em>rebuilding</em> search.</h1>
+    <p class="lede">Faster, smarter, and built per tenant.</p>
+    <div class="cover-meta">
+      <div>
+        <span class="label">Presenter</span>
+        <span class="value">Search Eng team</span>
+      </div>
+      <div>
+        <span class="label">Date</span>
+        <span class="value">May 15, 2026</span>
+      </div>
+      <div>
+        <span class="label">Audience</span>
+        <span class="value">All-hands</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 2: The problem -->
+  <section class="slide" aria-label="Slide 2: The problem">
+    <p class="eyebrow">The problem</p>
+    <h2 class="section">Search is slow, dumb, and unforgiving.</h2>
+    <div class="stat-row">
+      <div class="stat">
+        <span class="num">2.3s</span>
+        <span class="lbl">p95 latency on production search</span>
+      </div>
+      <div class="stat">
+        <span class="num">14%</span>
+        <span class="lbl">of queries return zero results</span>
+      </div>
+      <div class="stat">
+        <span class="num">0</span>
+        <span class="lbl">typo tolerance &mdash; one mis-key, no answer</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 3: Current state -->
+  <section class="slide" aria-label="Slide 3: Current state">
+    <p class="eyebrow">Current state</p>
+    <h2 class="section">One cluster doing every job, badly.</h2>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="tag">Infrastructure</div>
+        <div class="body">Single shared Elasticsearch cluster &mdash; one config for everyone.</div>
+      </div>
+      <div class="pillar">
+        <div class="tag">Intelligence</div>
+        <div class="body">No query understanding. Strings in, strings out.</div>
+      </div>
+      <div class="pillar">
+        <div class="tag">Tenancy</div>
+        <div class="body">No per-tenant tuning. Everyone gets the same relevance.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 4: Target architecture -->
+  <section class="slide" aria-label="Slide 4: Target architecture">
+    <p class="eyebrow">Target architecture</p>
+    <h2 class="section">Hybrid retrieval, isolated per tenant.</h2>
+    <div class="arch">
+      <div class="arch-card accent">
+        <div class="name">Hybrid retrieval</div>
+        <div class="hint">Vector + lexical, fused at query time.</div>
+      </div>
+      <div class="arch-card accent">
+        <div class="name">Per-tenant indexes</div>
+        <div class="hint">Isolated tuning, isolated blast radius.</div>
+      </div>
+      <div class="arch-card accent">
+        <div class="name">Async reindex queue</div>
+        <div class="hint">Updates without taking the cluster down.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5: Rollout plan -->
+  <section class="slide" aria-label="Slide 5: Rollout plan">
+    <p class="eyebrow">Rollout &middot; Q3 2026</p>
+    <h2 class="section">Four phases. Dark-launch first.</h2>
+    <div class="phases" role="list">
+      <div class="phase" role="listitem">
+        <div class="step">Phase 1</div>
+        <div class="pct">Dark</div>
+        <div class="desc">Shadow traffic. No user impact.</div>
+      </div>
+      <div class="phase" role="listitem">
+        <div class="step">Phase 2</div>
+        <div class="pct">1%</div>
+        <div class="desc">Canary tenants. Watch dashboards.</div>
+      </div>
+      <div class="phase" role="listitem">
+        <div class="step">Phase 3</div>
+        <div class="pct">10 &rarr; 50%</div>
+        <div class="desc">Staged ramp with rollback gates.</div>
+      </div>
+      <div class="phase" role="listitem">
+        <div class="step">Phase 4</div>
+        <div class="pct">100%</div>
+        <div class="desc">Full cutover. Decommission legacy.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 6: Risks + asks -->
+  <section class="slide" aria-label="Slide 6: Risks and asks">
+    <p class="eyebrow">Risks &amp; asks</p>
+    <h2 class="section">Two things we need from you.</h2>
+    <div class="risks">
+      <div class="risk-card warn">
+        <div class="kind">Budget approval</div>
+        <div class="title">Index storage cost up <span style="color:var(--accent)">+35%</span>.</div>
+        <div class="ask-text">Per-tenant indexes plus vector embeddings. Locked in for the year if approved this quarter.</div>
+      </div>
+      <div class="risk-card ask">
+        <div class="kind">Headcount</div>
+        <div class="title">We need <span style="color:var(--info)">1 ML engineer</span> hire.</div>
+        <div class="ask-text">Owns embedding model, ranking, and relevance evals. Without this, hybrid retrieval slips a quarter.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="chrome" aria-hidden="false">
+  <div class="deck-title">How we're rebuilding search &middot; Search Eng team</div>
+  <div class="counter" aria-live="polite">
+    <strong id="cur">1</strong> / <span id="total">6</span>
+  </div>
+</div>
+
+<nav class="nav" aria-label="Slide navigation">
+  <button id="prev" aria-label="Previous slide" title="Previous (Left arrow)">&larr;</button>
+  <button id="next" aria-label="Next slide" title="Next (Right arrow / Space)">&rarr;</button>
+</nav>
+
+<script>
+  (function () {
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const total = slides.length;
+    const curEl = document.getElementById('cur');
+    const totalEl = document.getElementById('total');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const progress = document.getElementById('progress');
+
+    let idx = 0;
+    totalEl.textContent = total;
+
+    function render() {
+      slides.forEach((s, i) => {
+        s.dataset.active = i === idx ? 'true' : 'false';
+      });
+      curEl.textContent = String(idx + 1);
+      progress.style.width = ((idx + 1) / total * 100) + '%';
+      prevBtn.disabled = idx === 0;
+      nextBtn.disabled = idx === total - 1;
+      // move focus to current slide for screen readers
+      slides[idx].setAttribute('tabindex', '-1');
+      slides[idx].focus({ preventScroll: true });
+    }
+
+    function go(delta) {
+      const next = Math.max(0, Math.min(total - 1, idx + delta));
+      if (next === idx) return;
+      idx = next;
+      render();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // ignore when typing
+      if (e.target.matches('input, textarea, [contenteditable]')) return;
+      switch (e.key) {
+        case 'ArrowRight':
+        case ' ':
+        case 'PageDown':
+          e.preventDefault();
+          go(+1);
+          break;
+        case 'ArrowLeft':
+        case 'PageUp':
+          e.preventDefault();
+          go(-1);
+          break;
+        case 'Home':
+          e.preventDefault();
+          idx = 0; render();
+          break;
+        case 'End':
+          e.preventDefault();
+          idx = total - 1; render();
+          break;
+        case 'f':
+        case 'F':
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.();
+          } else {
+            document.exitFullscreen?.();
+          }
+          break;
+      }
+    });
+
+    prevBtn.addEventListener('click', () => go(-1));
+    nextBtn.addEventListener('click', () => go(+1));
+
+    render();
+  })();
+</script>
+
+</body>
+</html>

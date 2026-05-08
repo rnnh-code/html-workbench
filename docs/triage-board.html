@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sprint Bug Triage</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --ink: #18181b;
+    --ink-2: #3f3f46;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --line-strong: #d4d4d8;
+    --focus: #2563eb;
+    --inbox: #475569;
+    --p0: #b91c1c;
+    --p1: #c2410c;
+    --p2: #0f766e;
+    --wont: #52525b;
+    --sev-high-bg: #fee2e2;
+    --sev-high-fg: #991b1b;
+    --sev-med-bg: #fef3c7;
+    --sev-med-fg: #92400e;
+    --sev-low-bg: #dbeafe;
+    --sev-low-fg: #1e40af;
+    --age-old-bg: #fee2e2;
+    --age-old-fg: #991b1b;
+    --age-mid-bg: #fef3c7;
+    --age-mid-fg: #92400e;
+    --age-new-bg: #ecfccb;
+    --age-new-fg: #3f6212;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.04);
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  header.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px;
+  }
+  .header-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+  .header-row h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .header-row .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .inbox-counter {
+    margin-left: auto;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--inbox);
+    color: #fff;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+  .inbox-counter[data-empty="true"] {
+    background: #166534;
+    color: #fff;
+  }
+
+  .export-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 14px;
+  }
+  .export-bar .label {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .btn {
+    font: inherit;
+    font-size: 14px;
+    padding: 7px 12px;
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+    min-height: 36px;
+  }
+  .btn:hover { background: #f4f4f5; }
+  .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn.primary:hover { background: #27272a; }
+  .btn.is-copied { background: #166534; color: #fff; border-color: #166534; }
+  .btn.ghost { background: transparent; }
+
+  .help {
+    color: var(--muted);
+    font-size: 13px;
+    margin-left: auto;
+  }
+  kbd {
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 2px 5px;
+    border: 1px solid var(--line-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: #fafafa;
+    color: var(--ink-2);
+  }
+
+  main {
+    padding: 16px 20px 32px;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(220px, 1fr));
+    gap: 14px;
+    align-items: stretch;
+  }
+  @media (max-width: 1100px) {
+    .board { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .board { grid-template-columns: 1fr; }
+  }
+
+  .col {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    min-height: 240px;
+  }
+  .col-head {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .col-head .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex: 0 0 auto;
+  }
+  .col-head .count {
+    margin-left: auto;
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 13px;
+    background: #f4f4f5;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .col-head .hint {
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .col[data-col="inbox"] .dot { background: var(--inbox); }
+  .col[data-col="p0"]    .dot { background: var(--p0); }
+  .col[data-col="p1"]    .dot { background: var(--p1); }
+  .col[data-col="p2"]    .dot { background: var(--p2); }
+  .col[data-col="wont"]  .dot { background: var(--wont); }
+
+  .drop-zone {
+    padding: 10px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: background 120ms ease;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .drop-zone.is-over {
+    background: #eff6ff;
+    outline: 2px dashed var(--focus);
+    outline-offset: -6px;
+  }
+  .drop-zone:empty::after {
+    content: "Empty";
+    color: #a1a1aa;
+    font-size: 13px;
+    text-align: center;
+    padding: 16px 0;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 10px 12px;
+    box-shadow: var(--shadow);
+    cursor: grab;
+    outline: none;
+    transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+  }
+  .card:focus-visible {
+    border-color: var(--focus);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.18);
+  }
+  .card.dragging {
+    opacity: .55;
+    cursor: grabbing;
+  }
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .card-num {
+    color: var(--muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+    padding-top: 2px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ink);
+    flex: 1;
+  }
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    align-items: center;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    line-height: 1.4;
+  }
+  .badge.sev-high { background: var(--sev-high-bg); color: var(--sev-high-fg); }
+  .badge.sev-medium { background: var(--sev-med-bg); color: var(--sev-med-fg); }
+  .badge.sev-low { background: var(--sev-low-bg); color: var(--sev-low-fg); }
+  .badge.age { font-weight: 500; text-transform: none; letter-spacing: 0; }
+  .badge.age-old { background: var(--age-old-bg); color: var(--age-old-fg); }
+  .badge.age-mid { background: var(--age-mid-bg); color: var(--age-mid-fg); }
+  .badge.age-new { background: var(--age-new-bg); color: var(--age-new-fg); }
+  .reporter {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .card-expand {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+  }
+  .card.is-open .card-expand { display: block; }
+  .card-expand label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .card-expand textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 6px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 56px;
+    background: #fafafa;
+  }
+  .card-expand textarea:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+    border-color: var(--focus);
+    background: #fff;
+  }
+
+  .card-toggle {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .card-toggle:hover { color: var(--ink); }
+  .card-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+  .card.has-reason .card-toggle::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--focus);
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  /* Modal for export preview */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(24, 24, 27, .45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .modal[data-open="true"] { display: flex; }
+  .modal-panel {
+    background: #fff;
+    border-radius: 8px;
+    width: min(720px, 100%);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  }
+  .modal-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .modal-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .modal-head .spacer { flex: 1; }
+  .modal-body {
+    padding: 12px 16px;
+    overflow: auto;
+  }
+  .modal-body textarea {
+    width: 100%;
+    min-height: 320px;
+    font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    resize: vertical;
+    background: #fafafa;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-row">
+    <h1>Sprint Bug Triage</h1>
+    <span class="sub">12 reports &middot; sort into P0 / P1 / P2 / Won't Do</span>
+    <span id="inbox-counter" class="inbox-counter" aria-live="polite">Inbox: 12 remaining</span>
+  </div>
+  <div class="export-bar" role="toolbar" aria-label="Export">
+    <span class="label">Export</span>
+    <button class="btn primary" id="copy-md">Copy Markdown</button>
+    <button class="btn" id="copy-json">Copy JSON</button>
+    <button class="btn ghost" id="preview-export">Preview</button>
+    <button class="btn ghost" id="reset-board">Reset</button>
+    <span class="help">
+      Focus a card with <kbd>Tab</kbd>, then press
+      <kbd>1</kbd> P0 &middot; <kbd>2</kbd> P1 &middot; <kbd>3</kbd> P2 &middot; <kbd>4</kbd> Won't Do &middot;
+      <kbd>0</kbd> back to Inbox &middot; <kbd>Enter</kbd> add reason
+    </span>
+  </div>
+</header>
+
+<main>
+  <section class="board" aria-label="Triage columns">
+    <div class="col" data-col="inbox">
+      <div class="col-head">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Inbox</span>
+        <span class="count" data-count-for="inbox">0</span>
+      </div>
+      <div class="drop-zone" data-col="inbox" aria-label="Inbox column"></div>
+    </div>
+    <div class="col" data-col="p0">
+      <div class="col-head">
+        <span class="dot" aria-hidden="true"></span>
+        <span>P0</span>
+        <span class="hint">key 1</span>
+        <span class="count" data-count-for="p0">0</span>
+      </div>
+      <div class="drop-zone" data-col="p0" aria-label="P0 column"></div>
+    </div>
+    <div class="col" data-col="p1">
+      <div class="col-head">
+        <span class="dot" aria-hidden="true"></span>
+        <span>P1</span>
+        <span class="hint">key 2</span>
+        <span class="count" data-count-for="p1">0</span>
+      </div>
+      <div class="drop-zone" data-col="p1" aria-label="P1 column"></div>
+    </div>
+    <div class="col" data-col="p2">
+      <div class="col-head">
+        <span class="dot" aria-hidden="true"></span>
+        <span>P2</span>
+        <span class="hint">key 3</span>
+        <span class="count" data-count-for="p2">0</span>
+      </div>
+      <div class="drop-zone" data-col="p2" aria-label="P2 column"></div>
+    </div>
+    <div class="col" data-col="wont">
+      <div class="col-head">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Won't Do</span>
+        <span class="hint">key 4</span>
+        <span class="count" data-count-for="wont">0</span>
+      </div>
+      <div class="drop-zone" data-col="wont" aria-label="Won't Do column"></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal" data-open="false" aria-hidden="true">
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title">Export preview</h2>
+      <span class="spacer"></span>
+      <button class="btn" id="modal-copy">Copy</button>
+      <button class="btn ghost" id="modal-close">Close</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="modal-text" readonly></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ---------- Data ----------
+const SEED = [
+  { id: 1,  title: 'Login fails with email containing "+" character', age: 10, reporter: "Anna",    severity: "high"   },
+  { id: 2,  title: "Avatar upload spinner never stops",                age: 3,  reporter: "Ben",     severity: "medium" },
+  { id: 3,  title: "Search shows results before user finishes typing", age: 2,  reporter: "Carla",   severity: "low"    },
+  { id: 4,  title: 'CSV export missing the "created_at" column',       age: 5,  reporter: "Dimitri", severity: "medium" },
+  { id: 5,  title: "iOS keyboard covers password field on iPhone SE",  age: 1,  reporter: "Esme",    severity: "high"   },
+  { id: 6,  title: "Settings page shows 404 when org has no projects", age: 8,  reporter: "Felix",   severity: "medium" },
+  { id: 7,  title: "Notification timestamps in user's timezone instead of UTC", age: 4, reporter: "Gita", severity: "low" },
+  { id: 8,  title: "Audit log truncates messages over 4KB silently",   age: 12, reporter: "Hassan",  severity: "high"   },
+  { id: 9,  title: "Color contrast on disabled buttons fails AA",      age: 6,  reporter: "Iris",    severity: "medium" },
+  { id: 10, title: "Webhook retry storms when target returns 500",     age: 2,  reporter: "Jack",    severity: "high"   },
+  { id: 11, title: "Onboarding skipped when user signs in via SSO",    age: 9,  reporter: "Kira",    severity: "medium" },
+  { id: 12, title: "Dashboard chart legend overlaps tooltip on small screens", age: 1, reporter: "Liam", severity: "low" },
+];
+
+const COLUMNS = [
+  { id: "inbox", label: "Inbox" },
+  { id: "p0",    label: "P0" },
+  { id: "p1",    label: "P1" },
+  { id: "p2",    label: "P2" },
+  { id: "wont",  label: "Won't Do" },
+];
+const KEY_TO_COL = { "1": "p0", "2": "p1", "3": "p2", "4": "wont", "0": "inbox" };
+
+// state[id] = { col, reason, expanded }
+const state = {};
+SEED.forEach(c => { state[c.id] = { col: "inbox", reason: "", expanded: false }; });
+
+// ---------- Helpers ----------
+function ageBucket(age) {
+  if (age >= 7) return "age-old";
+  if (age >= 3) return "age-mid";
+  return "age-new";
+}
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand("copy") ? resolve() : reject(); }
+    catch (e) { reject(e); }
+    finally { document.body.removeChild(ta); }
+  });
+}
+function flashCopied(button, label, duration) {
+  if (!button) return;
+  const original = button.textContent;
+  button.textContent = label || "Copied!";
+  button.classList.add("is-copied");
+  setTimeout(() => {
+    button.textContent = original;
+    button.classList.remove("is-copied");
+  }, duration || 1400);
+}
+
+function el(tag, props, children) {
+  const node = document.createElement(tag);
+  if (props) {
+    for (const [k, v] of Object.entries(props)) {
+      if (v == null) continue;
+      if (k === "class") node.className = v;
+      else if (k === "text") node.textContent = v;
+      else if (k === "dataset") {
+        for (const [dk, dv] of Object.entries(v)) node.dataset[dk] = dv;
+      } else if (k.startsWith("aria-") || k === "role" || k === "tabindex" || k === "draggable" || k === "id" || k === "type" || k === "rows" || k === "placeholder" || k === "for") {
+        node.setAttribute(k, v);
+      } else {
+        node[k] = v;
+      }
+    }
+  }
+  if (children) {
+    for (const c of children) {
+      if (c == null) continue;
+      node.appendChild(c);
+    }
+  }
+  return node;
+}
+
+// ---------- Render ----------
+function render() {
+  document.querySelectorAll(".drop-zone").forEach(z => {
+    while (z.firstChild) z.removeChild(z.firstChild);
+  });
+
+  SEED.forEach(card => {
+    const s = state[card.id];
+    const zone = document.querySelector('.drop-zone[data-col="' + s.col + '"]');
+    if (!zone) return;
+    zone.appendChild(buildCard(card, s));
+  });
+
+  COLUMNS.forEach(col => {
+    const n = SEED.filter(c => state[c.id].col === col.id).length;
+    const elN = document.querySelector('[data-count-for="' + col.id + '"]');
+    if (elN) elN.textContent = String(n);
+  });
+
+  const inboxN = SEED.filter(c => state[c.id].col === "inbox").length;
+  const counter = document.getElementById("inbox-counter");
+  counter.textContent = inboxN === 0 ? "Inbox: cleared" : "Inbox: " + inboxN + " remaining";
+  counter.dataset.empty = inboxN === 0 ? "true" : "false";
+}
+
+function buildCard(card, s) {
+  const ageClass = ageBucket(card.age);
+  const ageText = card.age === 1 ? "1 day" : card.age + " days";
+  const hasReason = s.reason.trim().length > 0;
+
+  const cardClass = "card"
+    + (s.expanded ? " is-open" : "")
+    + (hasReason ? " has-reason" : "");
+
+  const top = el("div", { class: "card-top" }, [
+    el("span", { class: "card-num", text: "#" + card.id }),
+    el("div", { class: "card-title", text: card.title }),
+  ]);
+
+  const meta = el("div", { class: "card-meta" }, [
+    el("span", { class: "badge sev-" + card.severity, text: card.severity }),
+    el("span", { class: "badge age " + ageClass, text: ageText }),
+    el("span", { class: "reporter", text: card.reporter }),
+  ]);
+
+  const toggle = el("button", {
+    type: "button",
+    class: "card-toggle",
+    "aria-expanded": s.expanded ? "true" : "false",
+    text: hasReason ? "Edit reason" : "Add reason",
+  });
+
+  const labelEl = el("label", { for: "reason-" + card.id, text: "One-line reason" });
+  const ta = el("textarea", {
+    id: "reason-" + card.id,
+    rows: "2",
+    placeholder: "Why this priority?",
+    dataset: { id: String(card.id) },
+  });
+  ta.value = s.reason;
+
+  const expand = el("div", { class: "card-expand" }, [labelEl, ta]);
+
+  const article = el("article", {
+    class: cardClass,
+    draggable: "true",
+    tabindex: "0",
+    role: "listitem",
+    "aria-label": "Card " + card.id + ": " + card.title + ". Severity " + card.severity + ". " + ageText + " old. Reporter " + card.reporter + ".",
+    dataset: { id: String(card.id) },
+  }, [top, meta, toggle, expand]);
+
+  return article;
+}
+
+// ---------- Move / assign ----------
+function moveCard(id, colId) {
+  if (!state[id]) return;
+  if (!COLUMNS.some(c => c.id === colId)) return;
+  state[id].col = colId;
+  render();
+  const moved = document.querySelector('.card[data-id="' + id + '"]');
+  if (moved) moved.focus();
+}
+
+// ---------- Drag-drop ----------
+let draggingId = null;
+
+document.addEventListener("dragstart", (e) => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  draggingId = Number(card.dataset.id);
+  card.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", String(draggingId)); } catch (_) {}
+});
+document.addEventListener("dragend", (e) => {
+  const card = e.target.closest(".card");
+  if (card) card.classList.remove("dragging");
+  document.querySelectorAll(".drop-zone.is-over").forEach(z => z.classList.remove("is-over"));
+  draggingId = null;
+});
+
+document.querySelectorAll(".drop-zone").forEach(zone => {
+  zone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    zone.classList.add("is-over");
+  });
+  zone.addEventListener("dragleave", (e) => {
+    if (!zone.contains(e.relatedTarget)) zone.classList.remove("is-over");
+  });
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("is-over");
+    const id = draggingId != null ? draggingId : Number(e.dataTransfer.getData("text/plain"));
+    if (!Number.isNaN(id)) moveCard(id, zone.dataset.col);
+  });
+});
+
+// ---------- Keyboard ----------
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  const isTyping = t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT");
+  const card = t && t.closest && t.closest(".card");
+
+  if (!card || isTyping) return;
+
+  if (KEY_TO_COL[e.key] !== undefined) {
+    e.preventDefault();
+    moveCard(Number(card.dataset.id), KEY_TO_COL[e.key]);
+    return;
+  }
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    toggleCard(Number(card.dataset.id));
+  }
+});
+
+// ---------- Expand / reason ----------
+function toggleCard(id) {
+  state[id].expanded = !state[id].expanded;
+  render();
+  const card = document.querySelector('.card[data-id="' + id + '"]');
+  if (card) {
+    if (state[id].expanded) {
+      const ta = card.querySelector("textarea");
+      if (ta) ta.focus();
+    } else {
+      card.focus();
+    }
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const toggle = e.target.closest(".card-toggle");
+  if (toggle) {
+    const card = toggle.closest(".card");
+    if (card) toggleCard(Number(card.dataset.id));
+  }
+});
+
+document.addEventListener("input", (e) => {
+  const ta = e.target.closest("textarea[data-id]");
+  if (!ta) return;
+  const id = Number(ta.dataset.id);
+  state[id].reason = ta.value;
+  const card = ta.closest(".card");
+  if (card) {
+    if (state[id].reason.trim()) card.classList.add("has-reason");
+    else card.classList.remove("has-reason");
+    const tog = card.querySelector(".card-toggle");
+    if (tog) tog.textContent = state[id].reason.trim() ? "Edit reason" : "Add reason";
+  }
+});
+
+// ---------- Export ----------
+function buildExportState() {
+  const out = {
+    exported_at: new Date().toISOString(),
+    columns: {},
+  };
+  COLUMNS.forEach(col => {
+    const ids = Array.from(document.querySelectorAll('.drop-zone[data-col="' + col.id + '"] .card'))
+      .map(c => Number(c.dataset.id));
+    out.columns[col.id] = ids.map(id => {
+      const seed = SEED.find(s => s.id === id);
+      return {
+        id: seed.id,
+        title: seed.title,
+        severity: seed.severity,
+        age_days: seed.age,
+        reporter: seed.reporter,
+        reason: state[id].reason.trim(),
+      };
+    });
+  });
+  return out;
+}
+
+function exportAsJson() {
+  return JSON.stringify(buildExportState(), null, 2);
+}
+
+function exportAsMarkdown() {
+  const data = buildExportState();
+  const lines = [];
+  lines.push("# Sprint Bug Triage");
+  lines.push("");
+  lines.push("_Exported " + data.exported_at + "_");
+  lines.push("");
+  COLUMNS.forEach(col => {
+    const cards = data.columns[col.id];
+    lines.push("## " + col.label + " (" + cards.length + ")");
+    if (cards.length === 0) {
+      lines.push("");
+      lines.push("_None_");
+      lines.push("");
+      return;
+    }
+    cards.forEach(c => {
+      const reason = c.reason ? " — " + c.reason : "";
+      lines.push("- **#" + c.id + "** " + c.title + reason);
+      lines.push("  - severity: " + c.severity + " · age: " + c.age_days + "d · reporter: " + c.reporter);
+    });
+    lines.push("");
+  });
+  return lines.join("\n").trim() + "\n";
+}
+
+document.getElementById("copy-md").addEventListener("click", (e) => {
+  copyText(exportAsMarkdown())
+    .then(() => flashCopied(e.currentTarget, "Markdown copied"))
+    .catch(() => flashCopied(e.currentTarget, "Copy failed", 1800));
+});
+document.getElementById("copy-json").addEventListener("click", (e) => {
+  copyText(exportAsJson())
+    .then(() => flashCopied(e.currentTarget, "JSON copied"))
+    .catch(() => flashCopied(e.currentTarget, "Copy failed", 1800));
+});
+
+// Preview modal
+const modal = document.getElementById("modal");
+const modalText = document.getElementById("modal-text");
+document.getElementById("preview-export").addEventListener("click", () => {
+  modalText.value = exportAsMarkdown();
+  modal.dataset.open = "true";
+  modal.setAttribute("aria-hidden", "false");
+  setTimeout(() => modalText.focus(), 0);
+});
+document.getElementById("modal-close").addEventListener("click", closeModal);
+modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && modal.dataset.open === "true") closeModal();
+});
+function closeModal() {
+  modal.dataset.open = "false";
+  modal.setAttribute("aria-hidden", "true");
+}
+document.getElementById("modal-copy").addEventListener("click", (e) => {
+  copyText(modalText.value)
+    .then(() => flashCopied(e.currentTarget, "Copied"))
+    .catch(() => flashCopied(e.currentTarget, "Copy failed", 1800));
+});
+
+// Reset
+document.getElementById("reset-board").addEventListener("click", () => {
+  const anyAssigned = SEED.some(c => state[c.id].col !== "inbox" || state[c.id].reason.trim());
+  if (anyAssigned && !confirm("Move all cards back to Inbox and clear reasons?")) return;
+  SEED.forEach(c => {
+    state[c.id].col = "inbox";
+    state[c.id].reason = "";
+    state[c.id].expanded = false;
+  });
+  render();
+});
+
+// Initial render
+render();
+</script>
+
+</body>
+</html>

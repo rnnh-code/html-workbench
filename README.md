@@ -2,6 +2,8 @@
 
 > An agent-agnostic skill that produces self-contained HTML artifacts — plans, specs, code reviews, explainers, design explorations, prototypes, reports, slide decks, and one-off editing interfaces — when HTML genuinely beats Markdown for the task.
 
+**[→ See live examples of artifacts the skill produces](https://rnnh-code.github.io/html-workbench/)**
+
 ## What it does
 
 `html-workbench` teaches an AI agent two things: **when** an HTML artifact will materially improve a response over plain Markdown, and **how** to build a polished, self-contained `.html` file that earns its weight.

@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PR #1834 review — Redis-backed rate limiter</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-elev: #161a21;
+    --bg-elev-2: #1d222b;
+    --border: #2a313d;
+    --text: #e6e8ec;
+    --text-dim: #a8b0bd;
+    --text-faint: #7c8492;
+    --accent: #6ea8ff;
+    --accent-bg: #1a2742;
+
+    --add: #1f3b2b;
+    --add-fg: #b8efc8;
+    --add-line: #2c8d4c;
+    --del: #3b1f24;
+    --del-fg: #f3b3bb;
+    --del-line: #c54454;
+
+    --sev-blocker: #d83a4a;
+    --sev-blocker-bg: #3a1418;
+    --sev-major:   #e88a2a;
+    --sev-major-bg: #3a2410;
+    --sev-minor:   #d8c34a;
+    --sev-minor-bg: #322d11;
+    --sev-nit:     #6ea8ff;
+    --sev-nit-bg:  #112139;
+    --sev-praise:  #4cc38a;
+    --sev-praise-bg: #103122;
+
+    --action-approve: #4cc38a;
+    --action-discuss: #e88a2a;
+    --action-changes: #d83a4a;
+
+    --shadow: 0 1px 0 rgba(255,255,255,0.03), 0 4px 16px rgba(0,0,0,0.35);
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fa;
+      --bg-elev: #ffffff;
+      --bg-elev-2: #f1f3f6;
+      --border: #d8dde5;
+      --text: #1a1d23;
+      --text-dim: #4a5160;
+      --text-faint: #6b7280;
+      --accent: #1d4ed8;
+      --accent-bg: #e3edff;
+
+      --add: #d8f5e1;
+      --add-fg: #14532d;
+      --add-line: #16a34a;
+      --del: #fde2e6;
+      --del-fg: #7a1424;
+      --del-line: #dc2626;
+
+      --sev-blocker: #b42535;
+      --sev-blocker-bg: #fbe4e7;
+      --sev-major:   #a85a09;
+      --sev-major-bg: #fcebd1;
+      --sev-minor:   #8a7a07;
+      --sev-minor-bg: #fbf3c4;
+      --sev-nit:     #1d4ed8;
+      --sev-nit-bg:  #e0eaff;
+      --sev-praise:  #066b3a;
+      --sev-praise-bg: #d6f5e3;
+
+      --action-approve: #066b3a;
+      --action-discuss: #a85a09;
+      --action-changes: #b42535;
+
+      --shadow: 0 1px 0 rgba(0,0,0,0.02), 0 4px 14px rgba(15,21,35,0.06);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover, a:focus { text-decoration: underline; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 24px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  /* SIDEBAR */
+  aside.sidebar {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+  .sidebar h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  .sidebar nav ul {
+    list-style: none;
+    margin: 0 0 18px;
+    padding: 0;
+  }
+  .sidebar nav li { margin: 0; }
+  .sidebar nav a {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    border: 1px solid transparent;
+    min-height: 40px;
+    align-items: center;
+  }
+  .sidebar nav a:hover, .sidebar nav a:focus-visible {
+    background: var(--bg-elev-2);
+    text-decoration: none;
+    border-color: var(--border);
+  }
+  .sidebar nav .file-name { flex: 1; word-break: break-word; }
+  .sidebar nav .file-meta {
+    font-size: 11px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .filter-chip {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--sans);
+    line-height: 1;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .filter-chip[aria-pressed="true"] {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .filter-chip .count {
+    font-size: 11px;
+    color: var(--text-faint);
+    background: var(--bg);
+    border-radius: 999px;
+    padding: 1px 6px;
+  }
+
+  /* MAIN */
+  main { min-width: 0; }
+
+  header.pr-head {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  header.pr-head .pr-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: var(--mono);
+    margin-bottom: 8px;
+  }
+  header.pr-head h1 {
+    font-size: 22px;
+    margin: 0 0 8px;
+    line-height: 1.3;
+  }
+  header.pr-head .summary {
+    color: var(--text-dim);
+    font-size: 15px;
+    margin: 0;
+    max-width: 75ch;
+  }
+
+  /* RECOMMENDED ACTION BANNER */
+  .action-banner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--action-changes);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .action-banner .label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    color: var(--text-faint);
+    font-weight: 600;
+  }
+  .action-banner .verdict {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--action-changes);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .action-banner .verdict::before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--action-changes);
+    box-shadow: 0 0 0 3px var(--sev-blocker-bg);
+  }
+  .action-banner .reason {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .action-banner .copy-btn { white-space: nowrap; }
+
+  /* BUTTONS */
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+    padding: 9px 14px;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.secondary {
+    background: var(--bg-elev-2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  @media (prefers-color-scheme: light) {
+    .btn { color: #fff; }
+  }
+
+  /* SECTIONS */
+  section.card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  section.card > h2 {
+    margin: 0 0 14px;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+  }
+  section.card > h2 .hint {
+    font-weight: 400;
+    color: var(--text-faint);
+    font-size: 13px;
+    margin-left: 8px;
+  }
+
+  /* SEVERITY BADGES */
+  .sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .sev::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: currentColor;
+    flex: 0 0 auto;
+  }
+  .sev.blocker { color: var(--sev-blocker); background: var(--sev-blocker-bg); }
+  .sev.major   { color: var(--sev-major);   background: var(--sev-major-bg); }
+  .sev.minor   { color: var(--sev-minor);   background: var(--sev-minor-bg); }
+  .sev.nit     { color: var(--sev-nit);     background: var(--sev-nit-bg); }
+  .sev.praise  { color: var(--sev-praise);  background: var(--sev-praise-bg); }
+  .sev.blocker::before { border-radius: 50%; }
+  .sev.major::before   { transform: rotate(45deg); }
+  .sev.minor::before   { border-radius: 0; }
+  .sev.nit::before     { border-radius: 50%; transform: scale(0.7); }
+  .sev.praise::before  { clip-path: polygon(50% 0, 100% 100%, 0 100%); background: currentColor; }
+
+  /* CONCERN LIST */
+  ul.concerns {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  ul.concerns > li {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: var(--bg-elev-2);
+  }
+  ul.concerns .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  ul.concerns .head .title {
+    font-weight: 600;
+    font-size: 15px;
+    flex: 1;
+    min-width: 200px;
+  }
+  ul.concerns .head .anchor-link {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  ul.concerns .body {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin: 0;
+  }
+  ul.concerns .body strong { color: var(--text); }
+  ul.concerns li.hidden { display: none; }
+
+  /* DIFF */
+  .diff-file {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    background: var(--bg-elev-2);
+  }
+  .diff-file > header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .diff-file > header .path { font-weight: 600; word-break: break-all; }
+  .diff-file > header .meta { color: var(--text-faint); font-size: 12px; white-space: nowrap; }
+
+  table.diff {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  table.diff td {
+    padding: 1px 10px;
+    vertical-align: top;
+    white-space: pre;
+    overflow-wrap: anywhere;
+  }
+  table.diff td.lineno {
+    color: var(--text-faint);
+    text-align: right;
+    user-select: none;
+    width: 1%;
+    min-width: 44px;
+    border-right: 1px solid var(--border);
+    background: var(--bg-elev);
+    padding: 1px 8px;
+    font-size: 12px;
+  }
+  table.diff td.code { width: 100%; }
+  table.diff tr.add td.code { background: var(--add); color: var(--add-fg); }
+  table.diff tr.add td.lineno { color: var(--add-line); }
+  table.diff tr.del td.code { background: var(--del); color: var(--del-fg); }
+  table.diff tr.del td.lineno { color: var(--del-line); }
+  table.diff tr.hunk td {
+    background: var(--bg-elev);
+    color: var(--text-faint);
+    font-style: italic;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 10px;
+  }
+
+  tr.inline-comment td {
+    background: var(--bg);
+    border-top: 1px dashed var(--border);
+    border-bottom: 1px dashed var(--border);
+    padding: 12px 16px !important;
+    white-space: normal;
+    font-family: var(--sans);
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  tr.inline-comment .ic-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  tr.inline-comment .ic-head .title { color: var(--text); font-weight: 600; font-size: 14px; }
+
+  /* CHECKLIST */
+  ul.checklist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  ul.checklist li {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  ul.checklist .row {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 14px;
+  }
+  ul.checklist .row + .row { margin-top: 6px; }
+  ul.checklist .status {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    line-height: 1.4;
+  }
+  ul.checklist .status.pass { color: var(--sev-praise); background: var(--sev-praise-bg); border: 1px solid currentColor; }
+  ul.checklist .status.warn { color: var(--sev-major);  background: var(--sev-major-bg);  border: 1px solid currentColor; }
+  ul.checklist .status.fail { color: var(--sev-blocker);background: var(--sev-blocker-bg);border: 1px solid currentColor; }
+  ul.checklist .status.unk  { color: var(--text-faint); background: var(--bg-elev); border: 1px solid var(--border); }
+  ul.checklist .label { color: var(--text); font-weight: 600; flex: 1; }
+  ul.checklist .note  { color: var(--text-dim); font-size: 13px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 100;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { transition: none; }
+  }
+
+  /* MODAL */
+  dialog.export-modal {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-elev);
+    color: var(--text);
+    padding: 0;
+    width: min(720px, 92vw);
+    box-shadow: 0 16px 60px rgba(0,0,0,0.5);
+  }
+  dialog.export-modal::backdrop { background: rgba(0,0,0,0.5); }
+  dialog.export-modal header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+  }
+  dialog.export-modal header h3 { margin: 0; font-size: 15px; }
+  dialog.export-modal .modal-body { padding: 14px 18px; }
+  dialog.export-modal textarea {
+    width: 100%;
+    min-height: 320px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  dialog.export-modal footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  dialog.export-modal .close-x {
+    background: transparent;
+    border: 0;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 8px;
+  }
+
+  .how-to-use {
+    color: var(--text-faint);
+    font-size: 13px;
+    margin: 0 0 6px;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+      padding: 16px;
+      gap: 16px;
+    }
+    aside.sidebar {
+      position: static;
+      max-height: none;
+    }
+    .action-banner {
+      grid-template-columns: 1fr;
+    }
+    .action-banner .copy-btn { justify-self: start; }
+    header.pr-head h1 { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside class="sidebar" aria-label="Review navigation">
+    <h2>Recommended action</h2>
+    <p style="margin:0 0 14px; font-size:13px; color:var(--text-dim);">
+      <span class="sev blocker" style="vertical-align:middle;">Request changes</span>
+    </p>
+
+    <h2>Filter by severity</h2>
+    <div class="filter-row" role="group" aria-label="Filter concerns by severity">
+      <button class="filter-chip" aria-pressed="true" data-sev="all">All <span class="count" id="count-all">0</span></button>
+      <button class="filter-chip" aria-pressed="false" data-sev="blocker">Blocker <span class="count" id="count-blocker">0</span></button>
+      <button class="filter-chip" aria-pressed="false" data-sev="major">Major <span class="count" id="count-major">0</span></button>
+      <button class="filter-chip" aria-pressed="false" data-sev="minor">Minor <span class="count" id="count-minor">0</span></button>
+      <button class="filter-chip" aria-pressed="false" data-sev="nit">Nit <span class="count" id="count-nit">0</span></button>
+      <button class="filter-chip" aria-pressed="false" data-sev="praise">Praise <span class="count" id="count-praise">0</span></button>
+    </div>
+    <p class="how-to-use" style="margin-top:8px;">Filters apply to the Top concerns list below.</p>
+
+    <h2 style="margin-top:18px;">Files in this PR</h2>
+    <nav aria-label="Changed files">
+      <ul>
+        <li><a href="#file-redis-lock">
+          <span class="file-name">services/limiter/redis_lock.go</span>
+          <span class="file-meta">+3 −1</span>
+        </a></li>
+        <li><a href="#file-limiter">
+          <span class="file-name">services/limiter/limiter.go</span>
+          <span class="file-meta">call sites</span>
+        </a></li>
+        <li><a href="#file-redis">
+          <span class="file-name">services/limiter/redis.go</span>
+          <span class="file-meta">client</span>
+        </a></li>
+        <li><a href="#file-test">
+          <span class="file-name">services/limiter/lock_test.go</span>
+          <span class="file-meta">tests</span>
+        </a></li>
+        <li><a href="#file-main">
+          <span class="file-name">cmd/api/main.go</span>
+          <span class="file-meta">init</span>
+        </a></li>
+        <li><a href="#file-makefile">
+          <span class="file-name">Makefile</span>
+          <span class="file-meta">deps</span>
+        </a></li>
+      </ul>
+    </nav>
+
+    <h2 style="margin-top:18px;">Jump to</h2>
+    <ul style="list-style:none; padding:0; margin:0;">
+      <li><a href="#concerns" style="display:block; padding:6px 10px; font-size:13px; color:var(--text); border-radius:6px;">Top concerns</a></li>
+      <li><a href="#diff" style="display:block; padding:6px 10px; font-size:13px; color:var(--text); border-radius:6px;">Annotated diff</a></li>
+      <li><a href="#checklist" style="display:block; padding:6px 10px; font-size:13px; color:var(--text); border-radius:6px;">Reviewer checklist</a></li>
+    </ul>
+  </aside>
+
+  <main>
+    <header class="pr-head">
+      <div class="pr-meta">
+        <span><strong style="color:var(--text);">PR #1834</strong></span>
+        <span>6 files changed</span>
+        <span>focus: services/limiter</span>
+      </div>
+      <h1>Move rate limiter from in-process counters to Redis-backed counters</h1>
+      <p class="summary">
+        Replaces local mutex / counter state with Redis SETNX-based locking and (per the file map) Redis-backed counters.
+        Review focus per author: <code style="font-family:var(--mono);">services/limiter/redis_lock.go</code> — the lock acquisition logic.
+      </p>
+    </header>
+
+    <div class="action-banner" role="region" aria-label="Recommended action">
+      <div>
+        <div class="label">Recommended action</div>
+        <div class="verdict">Request changes</div>
+      </div>
+      <div class="reason">
+        The visible <code style="font-family:var(--mono);">AcquireLock</code> change has at least one correctness blocker
+        (no lock owner, so any caller — or any retry — can release someone else's lock) and one safety blocker
+        (no <code style="font-family:var(--mono);">ReleaseLock</code> shown alongside; if it uses plain <code style="font-family:var(--mono);">DEL</code>,
+        the limiter is unsafe under contention). Fix the lock primitive before merging.
+      </div>
+      <button class="btn copy-btn" id="open-export" aria-label="Open export dialog with review as Markdown">
+        Copy review as Markdown
+      </button>
+    </div>
+
+    <section class="card" id="concerns">
+      <h2>Top concerns <span class="hint">severity-tagged · click a chip in the sidebar to filter</span></h2>
+      <ul class="concerns" id="concern-list">
+        <!-- 1: BLOCKER lock-owner -->
+        <li data-sev="blocker">
+          <div class="head">
+            <span class="sev blocker" aria-label="Severity blocker">Blocker</span>
+            <span class="title">Lock has no owner token — any caller can release any lock</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · L18+</a>
+          </div>
+          <p class="body">
+            <code style="font-family:var(--mono);">SetNX(ctx, "lock:"+key, "1", ttl)</code> stores the literal value
+            <code style="font-family:var(--mono);">"1"</code> for every acquirer. A correct Redis lock requires a
+            <strong>unique per-acquirer token</strong> (UUID/nanoid) stored as the value, and the release path must
+            <strong>only DEL when the value still matches its token</strong> — typically via a Lua CAS script
+            (<code style="font-family:var(--mono);">if GET == token then DEL</code>). Without an owner token, a
+            slow process whose TTL has expired and been re-acquired by another process can later
+            <code style="font-family:var(--mono);">DEL</code> the new owner's lock. This is the canonical Redis-lock footgun.
+            <strong>The release path is not in the abridged diff</strong>, so this needs verification, but the value
+            being a constant <code style="font-family:var(--mono);">"1"</code> is enough to flag it as a blocker on the acquire side.
+          </p>
+        </li>
+        <!-- 2: BLOCKER context -->
+        <li data-sev="blocker">
+          <div class="head">
+            <span class="sev blocker" aria-label="Severity blocker">Blocker</span>
+            <span class="title">Bare error return turns transient Redis failures into "lock unavailable"</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · L20–22</a>
+          </div>
+          <p class="body">
+            <code style="font-family:var(--mono);">if err != nil { return false, err }</code> conflates two very different
+            outcomes: <strong>"someone else holds the lock"</strong> and <strong>"Redis is unreachable / context cancelled
+            / timeout"</strong>. Callers in <code style="font-family:var(--mono);">services/limiter/limiter.go</code> (not shown)
+            need to know which one they got — for fail-open vs fail-closed behavior on the rate limiter. Recommend wrapping
+            the error and either (a) returning a typed error the caller can switch on, or (b) treating
+            <code style="font-family:var(--mono);">ctx.Err()</code> and connection errors as a distinct "limiter unavailable"
+            mode with explicit policy. Today's behavior risks silently dropping all rate-limiter requests during a Redis blip.
+          </p>
+        </li>
+        <!-- 3: MAJOR API change -->
+        <li data-sev="major">
+          <div class="head">
+            <span class="sev major" aria-label="Severity major">Major</span>
+            <span class="title">Signature didn't change — but semantics did. Boolean return now means something different.</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · L18</a>
+          </div>
+          <p class="body">
+            <code style="font-family:var(--mono);">localMutex.TryLock</code> returned a boolean reflecting only mutex
+            contention. <code style="font-family:var(--mono);">redis.SetNX</code> ok-flag means "key did not previously
+            exist," which depends on TTL behavior, clock skew, and Redis availability. Same signature, different invariants.
+            All callers in <code style="font-family:var(--mono);">limiter.go</code> need a fresh look. Worth either renaming
+            (<code style="font-family:var(--mono);">AcquireDistributedLock</code>) or documenting the new failure modes in
+            the doc comment so the next reader is not misled.
+          </p>
+        </li>
+        <!-- 4: MAJOR fairness/jitter -->
+        <li data-sev="major">
+          <div class="head">
+            <span class="sev major" aria-label="Severity major">Major</span>
+            <span class="title">No retry / backoff strategy visible — thundering-herd risk on contended keys</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · whole function</a>
+          </div>
+          <p class="body">
+            With an in-process mutex, contention was cheap; with Redis SETNX, every losing acquirer hits the network and
+            burns a request. If callers in <code style="font-family:var(--mono);">limiter.go</code> spin-retry without
+            jittered backoff, a hot key (popular endpoint, abusive client) can saturate Redis. Need to confirm caller
+            behavior and ideally add a small randomized backoff at this layer.
+            <strong>Caller code not in the abridged diff — needs verification.</strong>
+          </p>
+        </li>
+        <!-- 5: MAJOR test coverage -->
+        <li data-sev="major">
+          <div class="head">
+            <span class="sev major" aria-label="Severity major">Major</span>
+            <span class="title">Tests must cover the contended path, not just happy-path acquire</span>
+            <a class="anchor-link" href="#file-test">lock_test.go</a>
+          </div>
+          <p class="body">
+            <strong>Test file contents not in the abridged diff — needs verification.</strong> Required cases for a
+            distributed lock: (1) two goroutines, only one acquires; (2) TTL expiry releases the lock; (3) Redis-down
+            returns the typed error and does not falsely report success or failure; (4) release-after-expiry does NOT
+            delete a re-acquired lock (the canonical bug). If any of these are missing, this PR should not merge.
+          </p>
+        </li>
+        <!-- 6: MINOR key namespace -->
+        <li data-sev="minor">
+          <div class="head">
+            <span class="sev minor" aria-label="Severity minor">Minor</span>
+            <span class="title">Hard-coded <code style="font-family:var(--mono);">"lock:"</code> prefix — promote to a constant</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · L19</a>
+          </div>
+          <p class="body">
+            String-concatenated key prefixes drift across files over time. Move
+            <code style="font-family:var(--mono);">"lock:"</code> to a package-level
+            <code style="font-family:var(--mono);">const lockKeyPrefix</code> (and ideally a
+            <code style="font-family:var(--mono);">lockKey(key)</code> helper) so the limiter, debug tools, and any
+            ops scripts agree on the namespace. Also opens the door to env-prefixed keys for staging/prod isolation in
+            a shared Redis.
+          </p>
+        </li>
+        <!-- 7: MINOR ttl -->
+        <li data-sev="minor">
+          <div class="head">
+            <span class="sev minor" aria-label="Severity minor">Minor</span>
+            <span class="title">Validate <code style="font-family:var(--mono);">ttl &gt; 0</code> at the boundary</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · L18</a>
+          </div>
+          <p class="body">
+            A zero or negative <code style="font-family:var(--mono);">ttl</code> on
+            <code style="font-family:var(--mono);">SetNX</code> behaves differently from the old in-process mutex
+            (which had no concept of TTL). Reject it explicitly with a typed error to avoid permanently-held locks
+            from a misconfigured caller.
+          </p>
+        </li>
+        <!-- 8: NIT -->
+        <li data-sev="nit">
+          <div class="head">
+            <span class="sev nit" aria-label="Severity nit">Nit</span>
+            <span class="title">Single-statement <code style="font-family:var(--mono);">if err != nil</code> on one line is fine, but inconsistent with the rest of the package</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · L21</a>
+          </div>
+          <p class="body">
+            Style only — match the surrounding files. Worth a glance, not a blocker.
+          </p>
+        </li>
+        <!-- 9: PRAISE -->
+        <li data-sev="praise">
+          <div class="head">
+            <span class="sev praise" aria-label="Severity praise">Praise</span>
+            <span class="title">Keeping the function signature stable is the right call</span>
+            <a class="anchor-link" href="#hunk-acquire">redis_lock.go · L18</a>
+          </div>
+          <p class="body">
+            Not bumping the signature shrinks the diff at every call site and isolates the risk to the body. Good
+            instinct. Pair it with the doc-comment update from concern #3 and this becomes a clean refactor.
+          </p>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card" id="diff">
+      <h2>Annotated diff <span class="hint">only the hunk shown in the prompt is annotated · other files listed below are not in the abridged diff</span></h2>
+
+      <div class="diff-file" id="file-redis-lock">
+        <header>
+          <span class="path">services/limiter/redis_lock.go</span>
+          <span class="meta">+3 −1 · function: AcquireLock</span>
+        </header>
+        <table class="diff" id="hunk-acquire">
+          <tbody>
+            <tr class="hunk"><td colspan="3">@@ -12,6 +18,9 @@ func AcquireLock(ctx, key, ttl) (bool, error)</td></tr>
+            <tr><td class="lineno">12</td><td class="code">func AcquireLock(ctx context.Context, key string, ttl time.Duration) (bool, error) {</td></tr>
+            <tr class="del"><td class="lineno">13</td><td class="code">-    return localMutex.TryLock(key)</td></tr>
+            <tr class="add"><td class="lineno">19</td><td class="code">+    ok, err := redis.SetNX(ctx, "lock:"+key, "1", ttl).Result()</td></tr>
+            <tr class="inline-comment">
+              <td colspan="2">
+                <div class="ic-head">
+                  <span class="sev blocker" aria-label="Severity blocker">Blocker</span>
+                  <span class="title">Owner token missing</span>
+                </div>
+                Value is the constant <code style="font-family:var(--mono);">"1"</code>. A safe distributed lock
+                stores a unique per-acquirer token here so release can do a CAS-DEL via Lua. See concern #1.
+              </td>
+            </tr>
+            <tr class="add"><td class="lineno">20</td><td class="code">+    if err != nil { return false, err }</td></tr>
+            <tr class="inline-comment">
+              <td colspan="2">
+                <div class="ic-head">
+                  <span class="sev blocker" aria-label="Severity blocker">Blocker</span>
+                  <span class="title">Conflates contention with infrastructure failure</span>
+                </div>
+                A returned <code style="font-family:var(--mono);">err</code> here can mean Redis is unreachable, context
+                cancelled, or timeout — none of which are "lock not acquired." Caller can't tell the difference. See concern #2.
+              </td>
+            </tr>
+            <tr class="add"><td class="lineno">21</td><td class="code">+    return ok, nil</td></tr>
+            <tr class="inline-comment">
+              <td colspan="2">
+                <div class="ic-head">
+                  <span class="sev major" aria-label="Severity major">Major</span>
+                  <span class="title">Boolean now means "key didn't exist", not "mutex acquired"</span>
+                </div>
+                Same return type, different invariants. Update the doc comment, or rename the function. See concern #3.
+              </td>
+            </tr>
+            <tr><td class="lineno">22</td><td class="code">}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="diff-file" id="file-limiter">
+        <header>
+          <span class="path">services/limiter/limiter.go</span>
+          <span class="meta">call sites · diff not in prompt</span>
+        </header>
+        <p style="padding: 14px 16px; margin:0; color: var(--text-dim); font-size: 14px;">
+          Not shown in the abridged diff. Reviewer needs to confirm that every call site of
+          <code style="font-family:var(--mono);">AcquireLock</code> handles the new error semantics
+          (concern #2), the new "key existed" boolean meaning (#3), and has retry/backoff if it
+          loops (#4). Also confirm there is a corresponding <code style="font-family:var(--mono);">ReleaseLock</code>
+          and that it uses CAS-DEL via Lua (concern #1).
+        </p>
+      </div>
+
+      <div class="diff-file" id="file-redis">
+        <header>
+          <span class="path">services/limiter/redis.go</span>
+          <span class="meta">client · diff not in prompt</span>
+        </header>
+        <p style="padding: 14px 16px; margin:0; color: var(--text-dim); font-size: 14px;">
+          Confirm: connection pooling sized for the new traffic pattern, sensible
+          <code style="font-family:var(--mono);">DialTimeout</code>/<code style="font-family:var(--mono);">ReadTimeout</code>/<code style="font-family:var(--mono);">WriteTimeout</code>,
+          and a circuit-breaker or fallback path so a Redis outage doesn't 5xx the whole API.
+          <strong>Not in the abridged diff — needs verification.</strong>
+        </p>
+      </div>
+
+      <div class="diff-file" id="file-test">
+        <header>
+          <span class="path">services/limiter/lock_test.go</span>
+          <span class="meta">tests · diff not in prompt</span>
+        </header>
+        <p style="padding: 14px 16px; margin:0; color: var(--text-dim); font-size: 14px;">
+          See concern #5. Required: contended-acquire test, TTL-expiry test, Redis-down test,
+          release-after-expiry test (the classic bug). <strong>Test file content not in the abridged diff.</strong>
+        </p>
+      </div>
+
+      <div class="diff-file" id="file-main">
+        <header>
+          <span class="path">cmd/api/main.go</span>
+          <span class="meta">init · diff not in prompt</span>
+        </header>
+        <p style="padding: 14px 16px; margin:0; color: var(--text-dim); font-size: 14px;">
+          Confirm: Redis client lifecycle (graceful shutdown), config (URL via env, no secrets in flags), and
+          a startup health check that fails fast if Redis is unreachable. Otherwise the API will start in a
+          half-broken state. <strong>Not in the abridged diff — needs verification.</strong>
+        </p>
+      </div>
+
+      <div class="diff-file" id="file-makefile">
+        <header>
+          <span class="path">Makefile</span>
+          <span class="meta">deps · diff not in prompt</span>
+        </header>
+        <p style="padding: 14px 16px; margin:0; color: var(--text-dim); font-size: 14px;">
+          Confirm Redis is in <code style="font-family:var(--mono);">make test</code> as a service (docker-compose,
+          testcontainers, or a CI sidecar). If tests can pass without a real Redis, the new lock test surface is fictional.
+          <strong>Not in the abridged diff — needs verification.</strong>
+        </p>
+      </div>
+    </section>
+
+    <section class="card" id="checklist">
+      <h2>Reviewer checklist <span class="hint">tri-state: pass / warn / fail / unknown</span></h2>
+      <ul class="checklist">
+        <li>
+          <div class="row"><span class="status fail">Fail</span><span class="label">Correctness</span></div>
+          <p class="note">Lock owner token missing; release semantics not visible. See concerns #1, #2.</p>
+        </li>
+        <li>
+          <div class="row"><span class="status unk">Unknown</span><span class="label">Tests</span></div>
+          <p class="note">Test file not in the abridged diff. Need contention, TTL-expiry, Redis-down, and release-after-expiry cases. Concern #5.</p>
+        </li>
+        <li>
+          <div class="row"><span class="status warn">Warn</span><span class="label">Security</span></div>
+          <p class="note">No secrets in the visible hunk. Confirm Redis URL passed via env, not flags or files committed to the repo.</p>
+        </li>
+        <li>
+          <div class="row"><span class="status warn">Warn</span><span class="label">Performance</span></div>
+          <p class="note">Every contention attempt now hits the network. Need backoff strategy in callers; check pool sizing in <code style="font-family:var(--mono);">redis.go</code>. Concern #4.</p>
+        </li>
+        <li>
+          <div class="row"><span class="status warn">Warn</span><span class="label">Docs</span></div>
+          <p class="note">Function semantics changed; doc comment must reflect the new failure modes and "key didn't exist" boolean. Concern #3.</p>
+        </li>
+        <li>
+          <div class="row"><span class="status unk">Unknown</span><span class="label">Operability</span></div>
+          <p class="note">Confirm health check, circuit breaker, and metrics for "lock unavailable due to Redis." Verify in <code style="font-family:var(--mono);">main.go</code> / <code style="font-family:var(--mono);">redis.go</code>.</p>
+        </li>
+      </ul>
+    </section>
+
+    <p style="color: var(--text-faint); font-size: 12px; margin: 12px 4px 32px;">
+      Self-contained HTML · works offline · no remote scripts · honors prefers-color-scheme and prefers-reduced-motion.
+    </p>
+  </main>
+</div>
+
+<!-- EXPORT MODAL -->
+<dialog class="export-modal" id="export-modal" aria-labelledby="export-title">
+  <header>
+    <h3 id="export-title">Copy review as Markdown</h3>
+    <button class="close-x" id="close-modal" aria-label="Close">&times;</button>
+  </header>
+  <div class="modal-body">
+    <p class="how-to-use" style="margin: 0 0 8px;">Click <strong>Copy</strong> and paste into the PR comment box on GitHub/GitLab/Bitbucket.</p>
+    <textarea id="export-textarea" readonly aria-label="Markdown review text"></textarea>
+  </div>
+  <footer>
+    <button class="btn secondary" id="select-all">Select all</button>
+    <button class="btn" id="copy-md">Copy</button>
+  </footer>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite">Copied!</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ----- severity counts + filtering -----
+  var concernList = document.getElementById('concern-list');
+  var items = Array.prototype.slice.call(concernList.querySelectorAll('li'));
+  var counts = { all: items.length, blocker: 0, major: 0, minor: 0, nit: 0, praise: 0 };
+  items.forEach(function (li) {
+    var s = li.getAttribute('data-sev');
+    if (counts[s] != null) counts[s] += 1;
+  });
+  Object.keys(counts).forEach(function (k) {
+    var el = document.getElementById('count-' + k);
+    if (el) el.textContent = counts[k];
+  });
+
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.filter-chip'));
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var sev = chip.getAttribute('data-sev');
+      chips.forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
+      items.forEach(function (li) {
+        if (sev === 'all' || li.getAttribute('data-sev') === sev) {
+          li.classList.remove('hidden');
+        } else {
+          li.classList.add('hidden');
+        }
+      });
+    });
+  });
+
+  // ----- markdown export -----
+  function buildMarkdown() {
+    var lines = [];
+    lines.push('# PR #1834 review — Redis-backed rate limiter');
+    lines.push('');
+    lines.push('**Recommended action: Request changes**');
+    lines.push('');
+    lines.push('The visible `AcquireLock` change has a correctness blocker (no per-acquirer owner token, so the release path cannot safely CAS-DEL) and a safety blocker (errors from Redis are conflated with "lock not acquired"). Fix the lock primitive before merging.');
+    lines.push('');
+    lines.push('## Top concerns');
+    lines.push('');
+
+    var order = ['blocker', 'major', 'minor', 'nit', 'praise'];
+    var labels = { blocker: 'Blocker', major: 'Major', minor: 'Minor', nit: 'Nit', praise: 'Praise' };
+
+    order.forEach(function (sev) {
+      var matches = items.filter(function (li) { return li.getAttribute('data-sev') === sev; });
+      if (!matches.length) return;
+      lines.push('### ' + labels[sev]);
+      lines.push('');
+      matches.forEach(function (li) {
+        var title = li.querySelector('.title').textContent.trim();
+        var anchor = li.querySelector('.anchor-link');
+        var loc = anchor ? ' _(' + anchor.textContent.trim() + ')_' : '';
+        var body = li.querySelector('.body').textContent.replace(/\s+/g, ' ').trim();
+        lines.push('- **' + title + '**' + loc);
+        lines.push('  ' + body);
+      });
+      lines.push('');
+    });
+
+    lines.push('## Annotated diff — services/limiter/redis_lock.go');
+    lines.push('');
+    lines.push('```diff');
+    lines.push('@@ -12,6 +18,9 @@');
+    lines.push(' func AcquireLock(ctx context.Context, key string, ttl time.Duration) (bool, error) {');
+    lines.push('-    return localMutex.TryLock(key)');
+    lines.push('+    ok, err := redis.SetNX(ctx, "lock:"+key, "1", ttl).Result()');
+    lines.push('+    if err != nil { return false, err }');
+    lines.push('+    return ok, nil');
+    lines.push(' }');
+    lines.push('```');
+    lines.push('');
+    lines.push('Inline notes:');
+    lines.push('- L19 `"1"` literal value — **Blocker**: replace with a unique per-acquirer token (UUID) and CAS-DEL release via Lua.');
+    lines.push('- L20 `if err != nil { return false, err }` — **Blocker**: distinguish Redis-unavailable / ctx-cancelled from "lock not acquired"; return a typed error.');
+    lines.push('- L21 `return ok, nil` — **Major**: boolean now means "key didn\'t exist," not "mutex acquired"; update doc comment or rename function.');
+    lines.push('');
+    lines.push('## Reviewer checklist');
+    lines.push('');
+    lines.push('| Area | Status | Notes |');
+    lines.push('|---|---|---|');
+    lines.push('| Correctness | Fail | Lock owner token missing; release path not visible. |');
+    lines.push('| Tests | Unknown | Need contention, TTL-expiry, Redis-down, release-after-expiry. |');
+    lines.push('| Security | Warn | Confirm Redis URL via env; no secrets committed. |');
+    lines.push('| Performance | Warn | Every contention attempt now hits the network; need backoff and pool sizing. |');
+    lines.push('| Docs | Warn | Function semantics changed; doc comment must reflect new failure modes. |');
+    lines.push('| Operability | Unknown | Confirm health check, circuit breaker, metrics for "lock unavailable." |');
+    lines.push('');
+    lines.push('## Files in this PR');
+    lines.push('');
+    lines.push('- `services/limiter/redis_lock.go` — annotated above.');
+    lines.push('- `services/limiter/limiter.go` — call sites; not in abridged diff. Verify error handling, retry/backoff, ReleaseLock CAS-DEL.');
+    lines.push('- `services/limiter/redis.go` — client; verify pool sizing, timeouts, circuit breaker.');
+    lines.push('- `services/limiter/lock_test.go` — tests; verify contention / TTL / Redis-down / release-after-expiry cases exist.');
+    lines.push('- `cmd/api/main.go` — init; verify Redis client lifecycle, env config, startup health check.');
+    lines.push('- `Makefile` — deps; verify Redis available in `make test`.');
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  var modal = document.getElementById('export-modal');
+  var ta = document.getElementById('export-textarea');
+  var openBtn = document.getElementById('open-export');
+  var closeBtn = document.getElementById('close-modal');
+  var copyBtn = document.getElementById('copy-md');
+  var selectAllBtn = document.getElementById('select-all');
+  var toast = document.getElementById('toast');
+
+  function showToast(msg) {
+    toast.textContent = msg || 'Copied!';
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () { toast.classList.remove('show'); }, 1600);
+  }
+
+  openBtn.addEventListener('click', function () {
+    ta.value = buildMarkdown();
+    if (typeof modal.showModal === 'function') {
+      modal.showModal();
+    } else {
+      modal.setAttribute('open', '');
+    }
+  });
+
+  closeBtn.addEventListener('click', function () {
+    if (typeof modal.close === 'function') modal.close();
+    else modal.removeAttribute('open');
+  });
+
+  selectAllBtn.addEventListener('click', function () {
+    ta.focus();
+    ta.select();
+  });
+
+  copyBtn.addEventListener('click', function () {
+    ta.focus();
+    ta.select();
+    var ok = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(
+        function () { showToast('Copied review to clipboard'); },
+        function () {
+          // fallback
+          try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+          showToast(ok ? 'Copied review to clipboard' : 'Press Ctrl/Cmd+C to copy');
+        }
+      );
+    } else {
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      showToast(ok ? 'Copied review to clipboard' : 'Press Ctrl/Cmd+C to copy');
+    }
+  });
+
+  // ESC closes modal (native dialog handles it, but be defensive for the polyfill path)
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.hasAttribute('open')) {
+      if (typeof modal.close === 'function') modal.close();
+      else modal.removeAttribute('open');
+    }
+  });
+})();
+</script>
+</body>
+</html>

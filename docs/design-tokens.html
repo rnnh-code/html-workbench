@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Design Tokens</title>
+<style>
+  /* ---------- Token definitions ---------- */
+  :root {
+    /* Neutrals (light) */
+    --neutral-0:   #ffffff;
+    --neutral-50:  #f6f7f9;
+    --neutral-100: #ecedef;
+    --neutral-200: #d8dade;
+    --neutral-300: #a6abb4;
+    --neutral-400: #7d8390;
+    --neutral-500: #5a6068;
+    --neutral-600: #3a3f47;
+    --neutral-700: #24272d;
+    --neutral-900: #0e1014;
+
+    /* Brand */
+    --brand:       #2563eb;
+    --brand-bg:    #eef4ff;
+
+    /* Semantic */
+    --success:     #16804f;
+    --success-bg:  #e6f4ec;
+    --warning:     #a35a00;
+    --warning-bg:  #fdf2dc;
+    --error:       #b42318;
+    --error-bg:    #fdecea;
+    --info:        #1d4ed8;
+    --info-bg:     #eef4ff;
+
+    /* Surfaces */
+    --bg:          var(--neutral-0);
+    --bg-subtle:   var(--neutral-50);
+    --bg-muted:    var(--neutral-100);
+    --border:      var(--neutral-200);
+    --text:        var(--neutral-900);
+    --text-muted:  var(--neutral-500);
+    --text-subtle: var(--neutral-400);
+
+    /* Type */
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+    --fs-12: 12px;  --fs-14: 14px;  --fs-16: 16px;  --fs-18: 18px;
+    --fs-24: 24px;  --fs-32: 32px;  --fs-48: 48px;  --fs-64: 64px;
+
+    --fw-400: 400; --fw-500: 500; --fw-600: 600; --fw-700: 700;
+
+    /* Spacing */
+    --space-4: 4px;   --space-8: 8px;   --space-12: 12px; --space-16: 16px;
+    --space-24: 24px; --space-32: 32px; --space-48: 48px; --space-64: 64px;
+
+    /* Radii */
+    --radius-4: 4px; --radius-6: 6px; --radius-8: 8px; --radius-12: 12px; --radius-pill: 999px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(15,17,21,0.06), 0 1px 1px rgba(15,17,21,0.04);
+    --shadow-md: 0 4px 8px rgba(15,17,21,0.08), 0 2px 4px rgba(15,17,21,0.06);
+    --shadow-lg: 0 16px 32px rgba(15,17,21,0.12), 0 4px 12px rgba(15,17,21,0.08);
+
+    /* Motion */
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --duration-slow: 320ms;
+    --ease-out:      cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  [data-theme="dark"] {
+    --neutral-0:   #0e1014;
+    --neutral-50:  #15181d;
+    --neutral-100: #1d2128;
+    --neutral-200: #2a2f38;
+    --neutral-300: #4a5160;
+    --neutral-400: #7d8390;
+    --neutral-500: #a6abb4;
+    --neutral-600: #c8ccd2;
+    --neutral-700: #e0e2e6;
+    --neutral-900: #ebecef;
+
+    --brand:       #6ea1ff;
+    --brand-bg:    #15233f;
+
+    --success:     #4ec38a;
+    --success-bg:  #122a20;
+    --warning:     #e0a256;
+    --warning-bg:  #2c1f0d;
+    --error:       #f07467;
+    --error-bg:    #2e1715;
+    --info:        #6ea1ff;
+    --info-bg:     #15233f;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 10px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.35);
+    --shadow-lg: 0 18px 36px rgba(0,0,0,0.6), 0 6px 14px rgba(0,0,0,0.4);
+  }
+
+  /* ---------- Page chrome ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color var(--duration-base) var(--ease-out),
+                color var(--duration-base) var(--ease-out);
+  }
+
+  header.page {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: saturate(150%) blur(6px);
+    border-bottom: 1px solid var(--border);
+    padding: var(--space-16) var(--space-24);
+    display: flex; gap: var(--space-16); align-items: center; flex-wrap: wrap;
+  }
+  header.page h1 {
+    font-size: var(--fs-18); font-weight: 600; margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header.page .lead {
+    color: var(--text-muted); font-size: var(--fs-14);
+    margin: 0; flex: 1 1 280px; min-width: 200px;
+  }
+  .controls { display: flex; gap: var(--space-8); flex-wrap: wrap; }
+
+  main { padding: var(--space-32) var(--space-24) var(--space-64); max-width: 1280px; margin: 0 auto; }
+  section { margin-bottom: var(--space-48); scroll-margin-top: 80px; }
+  section h2 {
+    font-size: var(--fs-24); font-weight: 600; margin: 0 0 var(--space-8);
+    letter-spacing: -0.01em;
+  }
+  section .desc { color: var(--text-muted); font-size: var(--fs-14); margin: 0 0 var(--space-24); max-width: 70ch; }
+
+  .btn {
+    appearance: none; cursor: pointer;
+    font: inherit; font-size: var(--fs-14); font-weight: 500;
+    color: var(--text);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-6);
+    padding: 8px 12px;
+    min-height: 36px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background-color var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--bg-muted); }
+  .btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .btn[aria-pressed="true"] { background: var(--brand-bg); border-color: var(--brand); color: var(--brand); }
+  .btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .btn.primary:hover { filter: brightness(1.05); }
+  [data-theme="dark"] .btn.primary { color: #0e1014; }
+
+  .seg {
+    display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-6); overflow: hidden;
+    background: var(--bg-subtle);
+  }
+  .seg .btn { border: 0; border-radius: 0; background: transparent; }
+  .seg .btn[aria-pressed="true"] { background: var(--bg-muted); color: var(--text); }
+  .seg .btn + .btn { border-left: 1px solid var(--border); }
+
+  .swatch-grid {
+    display: grid; gap: var(--space-12);
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  .swatch {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-8);
+    padding: var(--space-12);
+    cursor: pointer; text-align: left; font: inherit; color: inherit;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  }
+  .swatch:hover { box-shadow: var(--shadow-sm); }
+  .swatch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .swatch.copied { box-shadow: 0 0 0 2px var(--success) inset; }
+  .swatch .chip {
+    height: 64px; border-radius: var(--radius-6); border: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .swatch .chip .pair {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-14); font-weight: 600;
+  }
+  .swatch .meta { display: flex; flex-direction: column; gap: 2px; }
+  .swatch .name { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text); }
+  .swatch .value { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text-muted); }
+  .swatch .role { font-size: 12px; color: var(--text-muted); }
+  .swatch .contrast {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--fs-12); color: var(--text-muted); margin-top: 2px;
+  }
+  .swatch .contrast .label { font-size: 11px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 6px; border-radius: var(--radius-pill);
+    font-size: 11px; font-weight: 600; line-height: 1.4;
+    border: 1px solid var(--border); background: var(--bg-muted); color: var(--text-muted);
+  }
+  .badge.pass    { background: var(--success-bg); color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+  .badge.warn    { background: var(--warning-bg); color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); }
+  .badge.fail    { background: var(--error-bg);   color: var(--error);   border-color: color-mix(in srgb, var(--error) 30%, transparent); }
+
+  table.tokens {
+    width: 100%; border-collapse: collapse;
+    background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-8);
+    overflow: hidden;
+  }
+  table.tokens th, table.tokens td {
+    padding: 10px 12px; text-align: left; vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-14);
+  }
+  table.tokens tr:last-child td { border-bottom: 0; }
+  table.tokens th {
+    font-weight: 600; background: var(--bg-muted); color: var(--text-muted);
+    font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  table.tokens td.var, table.tokens td.value { font-family: var(--font-mono); font-size: var(--fs-12); }
+  table.tokens td.value { color: var(--text-muted); }
+  table.tokens tr.row-copy { cursor: pointer; }
+  table.tokens tr.row-copy:hover td { background: color-mix(in srgb, var(--brand-bg) 50%, var(--bg-subtle)); }
+  table.tokens tr.copied td { background: color-mix(in srgb, var(--success-bg) 70%, var(--bg-subtle)); }
+
+  .specimen { font-family: var(--font-sans); color: var(--text); line-height: 1.15; }
+  .specimen.weight-400 { font-weight: 400; }
+  .specimen.weight-500 { font-weight: 500; }
+  .specimen.weight-600 { font-weight: 600; }
+  .specimen.weight-700 { font-weight: 700; }
+
+  .space-bar {
+    display: inline-block; height: 16px; background: var(--brand);
+    border-radius: 3px; vertical-align: middle;
+  }
+  .radius-box {
+    display: inline-block; width: 56px; height: 36px;
+    background: var(--brand-bg); border: 1px solid var(--brand);
+  }
+  .shadow-box {
+    display: inline-block; width: 64px; height: 40px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-6);
+  }
+  .motion-preview {
+    width: 56px; height: 8px; border-radius: var(--radius-pill);
+    background: var(--brand-bg); position: relative; overflow: hidden;
+  }
+  .motion-preview::after {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 30%;
+    background: var(--brand); border-radius: var(--radius-pill);
+    animation: slide var(--motion-duration, 200ms) var(--motion-ease, ease) infinite alternate;
+  }
+  @keyframes slide { from { left: 0; } to { left: 70%; } }
+
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--neutral-900); color: var(--neutral-0);
+    padding: 10px 14px; border-radius: var(--radius-6); font-size: var(--fs-14);
+    box-shadow: var(--shadow-md);
+    opacity: 0; pointer-events: none;
+    transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+    z-index: 50;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: var(--space-24);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-12); box-shadow: var(--shadow-lg);
+    width: 100%; max-width: 760px; max-height: 80vh; display: flex; flex-direction: column;
+  }
+  .modal header.modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-16); border-bottom: 1px solid var(--border);
+    position: static; background: var(--bg);
+  }
+  .modal header.modal-head h3 { margin: 0; font-size: var(--fs-18); font-weight: 600; }
+  .modal-controls { display: flex; gap: var(--space-8); }
+  .modal pre {
+    margin: 0; padding: var(--space-16); flex: 1;
+    overflow: auto; font-family: var(--font-mono); font-size: var(--fs-12);
+    background: var(--bg-subtle); color: var(--text);
+    line-height: 1.5; white-space: pre;
+  }
+  .modal footer.modal-foot {
+    display: flex; gap: var(--space-8); justify-content: flex-end;
+    padding: var(--space-12) var(--space-16); border-top: 1px solid var(--border);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+    .motion-preview::after { animation: none; left: 35%; }
+  }
+
+  @media (max-width: 640px) {
+    main { padding: var(--space-24) var(--space-16) var(--space-48); }
+    .swatch-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    table.tokens th, table.tokens td { padding: 8px; font-size: var(--fs-12); }
+    header.page { padding: var(--space-12) var(--space-16); }
+  }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>Design Tokens</h1>
+  <p class="lead">Single source of truth. Click any swatch or row to copy its CSS variable.</p>
+  <div class="controls" role="toolbar" aria-label="Display controls">
+    <div class="seg" role="group" aria-label="Color format">
+      <button class="btn" data-format="hex" aria-pressed="true">HEX</button>
+      <button class="btn" data-format="rgb" aria-pressed="false">RGB</button>
+      <button class="btn" data-format="hsl" aria-pressed="false">HSL</button>
+    </div>
+    <button class="btn" id="theme-toggle" aria-pressed="false" aria-label="Toggle dark mode">Dark</button>
+    <button class="btn primary" id="export-btn">Export</button>
+  </div>
+</header>
+
+<main>
+
+  <section id="colors-brand" aria-labelledby="h-brand">
+    <h2 id="h-brand">Brand</h2>
+    <p class="desc">One accent for primary actions and identity. Each token has a tinted <code>-bg</code> for surfaces.</p>
+    <div class="swatch-grid" data-color-group="brand"></div>
+  </section>
+
+  <section id="colors-neutral" aria-labelledby="h-neutral">
+    <h2 id="h-neutral">Neutrals</h2>
+    <p class="desc">Single ramp from white to black. Used for backgrounds, surfaces, borders, and text.</p>
+    <div class="swatch-grid" data-color-group="neutral"></div>
+  </section>
+
+  <section id="colors-status" aria-labelledby="h-status">
+    <h2 id="h-status">Semantic status</h2>
+    <p class="desc">Use consistently. Pair color with an icon and label so the meaning survives in grayscale.</p>
+    <div class="swatch-grid" data-color-group="status"></div>
+  </section>
+
+  <section id="type" aria-labelledby="h-type">
+    <h2 id="h-type">Type scale</h2>
+    <p class="desc">System font stack. Sizes 12–64. Weights 400 / 500 / 600 / 700. Specimen reflects the real use case.</p>
+    <div style="margin-bottom: var(--space-16); font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text-muted);">
+      <strong>--font-sans:</strong> ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif
+    </div>
+    <table class="tokens" id="type-table">
+      <thead><tr><th>Specimen (use case)</th><th>Variable</th><th>Size</th><th>Weight</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="spacing" aria-labelledby="h-spacing">
+    <h2 id="h-spacing">Spacing</h2>
+    <p class="desc">Linear ramp for padding, gap, and margin. Bars below show the relative width.</p>
+    <table class="tokens" id="spacing-table">
+      <thead><tr><th>Variable</th><th>Value</th><th style="width: 60%;">Visual</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="radii" aria-labelledby="h-radii">
+    <h2 id="h-radii">Radii</h2>
+    <p class="desc">Corner radii for surfaces and pills.</p>
+    <table class="tokens" id="radii-table">
+      <thead><tr><th>Variable</th><th>Value</th><th>Preview</th><th>Use</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="shadows" aria-labelledby="h-shadows">
+    <h2 id="h-shadows">Shadows</h2>
+    <p class="desc">Three elevation steps. Use sparingly to indicate floating layers.</p>
+    <table class="tokens" id="shadows-table">
+      <thead><tr><th>Variable</th><th>Preview</th><th>Use</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="motion" aria-labelledby="h-motion">
+    <h2 id="h-motion">Motion</h2>
+    <p class="desc">Durations and easing curves. Honor <code>prefers-reduced-motion</code> in your code.</p>
+    <table class="tokens" id="motion-table">
+      <thead><tr><th>Variable</th><th>Value</th><th>Preview</th><th>Use</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="export-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="export-title">
+  <div class="modal">
+    <header class="modal-head">
+      <h3 id="export-title">Export tokens</h3>
+      <div class="modal-controls">
+        <div class="seg" role="group" aria-label="Export format">
+          <button class="btn" data-export-format="css" aria-pressed="true">CSS variables</button>
+          <button class="btn" data-export-format="json" aria-pressed="false">JSON</button>
+        </div>
+      </div>
+    </header>
+    <pre id="export-output" tabindex="0"></pre>
+    <footer class="modal-foot">
+      <button class="btn" id="copy-export">Copy</button>
+      <button class="btn" id="close-export">Close</button>
+    </footer>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   TOKEN DATA
+   ============================================================ */
+
+const COLORS = {
+  brand: [
+    { name: '--brand',      light: '#2563eb', dark: '#6ea1ff', against: 'white-or-black', role: 'Primary action / identity' },
+    { name: '--brand-bg',   light: '#eef4ff', dark: '#15233f', against: '--brand',         role: 'Tinted surface for brand' },
+  ],
+  neutral: [
+    { name: '--neutral-0',   light: '#ffffff', dark: '#0e1014', against: '--neutral-900', role: 'Page background' },
+    { name: '--neutral-50',  light: '#f6f7f9', dark: '#15181d', against: '--neutral-900', role: 'Subtle surface' },
+    { name: '--neutral-100', light: '#ecedef', dark: '#1d2128', against: '--neutral-900', role: 'Muted surface' },
+    { name: '--neutral-200', light: '#d8dade', dark: '#2a2f38', against: '--neutral-900', role: 'Border / divider' },
+    { name: '--neutral-300', light: '#a6abb4', dark: '#4a5160', against: '--neutral-900', role: 'Disabled foreground' },
+    { name: '--neutral-400', light: '#7d8390', dark: '#7d8390', against: '--neutral-0',   role: 'Subtle text' },
+    { name: '--neutral-500', light: '#5a6068', dark: '#a6abb4', against: '--neutral-0',   role: 'Muted text' },
+    { name: '--neutral-600', light: '#3a3f47', dark: '#c8ccd2', against: '--neutral-0',   role: 'Strong muted text' },
+    { name: '--neutral-700', light: '#24272d', dark: '#e0e2e6', against: '--neutral-0',   role: 'Heading text' },
+    { name: '--neutral-900', light: '#0e1014', dark: '#ebecef', against: '--neutral-0',   role: 'Primary text' },
+  ],
+  status: [
+    { name: '--success',     light: '#16804f', dark: '#4ec38a', against: '--neutral-0',   role: 'Success text / icon' },
+    { name: '--success-bg',  light: '#e6f4ec', dark: '#122a20', against: '--success',     role: 'Success surface' },
+    { name: '--warning',     light: '#a35a00', dark: '#e0a256', against: '--neutral-0',   role: 'Warning text / icon' },
+    { name: '--warning-bg',  light: '#fdf2dc', dark: '#2c1f0d', against: '--warning',     role: 'Warning surface' },
+    { name: '--error',       light: '#b42318', dark: '#f07467', against: '--neutral-0',   role: 'Error text / icon' },
+    { name: '--error-bg',    light: '#fdecea', dark: '#2e1715', against: '--error',       role: 'Error surface' },
+    { name: '--info',        light: '#1d4ed8', dark: '#6ea1ff', against: '--neutral-0',   role: 'Info text / icon' },
+    { name: '--info-bg',     light: '#eef4ff', dark: '#15233f', against: '--info',        role: 'Info surface' },
+  ],
+};
+
+const TYPE_USES = {
+  12: 'Caption / metadata',
+  14: 'Secondary body / table cell',
+  16: 'Body text',
+  18: 'Lead paragraph / small heading',
+  24: 'Section title',
+  32: 'Page title',
+  48: 'Display heading',
+  64: 'Hero / marketing display',
+};
+const TYPE_SIZES   = [12, 14, 16, 18, 24, 32, 48, 64];
+const TYPE_WEIGHTS = [400, 500, 600, 700];
+const SPACING = [4, 8, 12, 16, 24, 32, 48, 64];
+const RADII = [
+  { name: '--radius-4',    value: '4px',   use: 'Small chips, inputs' },
+  { name: '--radius-6',    value: '6px',   use: 'Buttons, badges' },
+  { name: '--radius-8',    value: '8px',   use: 'Cards, swatches' },
+  { name: '--radius-12',   value: '12px',  use: 'Modals, dialogs' },
+  { name: '--radius-pill', value: '999px', use: 'Pills, avatars' },
+];
+const SHADOWS = [
+  { name: '--shadow-sm', light: '0 1px 2px rgba(15,17,21,0.06), 0 1px 1px rgba(15,17,21,0.04)',     dark: '0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3)',        use: 'Hover lift, low elevation' },
+  { name: '--shadow-md', light: '0 4px 8px rgba(15,17,21,0.08), 0 2px 4px rgba(15,17,21,0.06)',     dark: '0 4px 10px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.35)',     use: 'Cards, dropdowns' },
+  { name: '--shadow-lg', light: '0 16px 32px rgba(15,17,21,0.12), 0 4px 12px rgba(15,17,21,0.08)',  dark: '0 18px 36px rgba(0,0,0,0.6), 0 6px 14px rgba(0,0,0,0.4)',    use: 'Modals, popovers' },
+];
+const MOTION = [
+  { name: '--duration-fast', value: '120ms',                                    type: 'duration', use: 'Hover, focus, micro states' },
+  { name: '--duration-base', value: '200ms',                                    type: 'duration', use: 'Most UI transitions' },
+  { name: '--duration-slow', value: '320ms',                                    type: 'duration', use: 'Panels, modals' },
+  { name: '--ease-out',      value: 'cubic-bezier(0.2, 0.8, 0.2, 1)',           type: 'easing',   use: 'Enter / appear' },
+  { name: '--ease-in-out',   value: 'cubic-bezier(0.65, 0, 0.35, 1)',           type: 'easing',   use: 'Move / morph' },
+];
+
+/* ============================================================
+   DOM helpers (no innerHTML — every value is internal data)
+   ============================================================ */
+
+function el(tag, attrs, ...children) {
+  const node = document.createElement(tag);
+  if (attrs) {
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === 'class')        node.className = v;
+      else if (k === 'style')   node.setAttribute('style', v);
+      else if (k === 'text')    node.textContent = v;
+      else if (k === 'data')    for (const [dk, dv] of Object.entries(v)) node.dataset[dk] = dv;
+      else if (k === 'aria')    for (const [ak, av] of Object.entries(v)) node.setAttribute('aria-' + ak, av);
+      else                      node.setAttribute(k, v);
+    }
+  }
+  for (const c of children) {
+    if (c == null || c === false) continue;
+    if (typeof c === 'string')    node.appendChild(document.createTextNode(c));
+    else                          node.appendChild(c);
+  }
+  return node;
+}
+
+/* ============================================================
+   COLOR UTILITIES
+   ============================================================ */
+
+function hexToRgb(hex) {
+  const m = hex.replace('#','').match(/^([0-9a-f]{6})$/i);
+  if (!m) return null;
+  const v = m[1];
+  return { r: parseInt(v.slice(0,2),16), g: parseInt(v.slice(2,4),16), b: parseInt(v.slice(4,6),16) };
+}
+function rgbToHsl(r,g,b) {
+  r/=255; g/=255; b/=255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h, s, l = (max+min)/2;
+  if (max === min) { h=0; s=0; }
+  else {
+    const d = max-min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    switch (max) {
+      case r: h = (g-b)/d + (g<b?6:0); break;
+      case g: h = (b-r)/d + 2; break;
+      case b: h = (r-g)/d + 4; break;
+    }
+    h *= 60;
+  }
+  return { h: Math.round(h), s: Math.round(s*100), l: Math.round(l*100) };
+}
+function formatColor(hex, fmt) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  if (fmt === 'rgb') return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+  if (fmt === 'hsl') {
+    const {h,s,l} = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  }
+  return hex.toLowerCase();
+}
+function luminance(hex) {
+  const rgb = hexToRgb(hex); if (!rgb) return 0;
+  const channel = c => { c = c/255; return c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4); };
+  return 0.2126*channel(rgb.r) + 0.7152*channel(rgb.g) + 0.0722*channel(rgb.b);
+}
+function contrastRatio(hex1, hex2) {
+  const L1 = luminance(hex1), L2 = luminance(hex2);
+  const [a, b] = L1 > L2 ? [L1, L2] : [L2, L1];
+  return (a + 0.05) / (b + 0.05);
+}
+function tokenValue(name, mode) {
+  for (const group of Object.values(COLORS)) {
+    for (const t of group) if (t.name === name) return mode === 'dark' ? t.dark : t.light;
+  }
+  return null;
+}
+function contrastBadgeClass(ratio) {
+  if (ratio >= 4.5) return 'pass';
+  if (ratio >= 3.0) return 'warn';
+  return 'fail';
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = { format: 'hex', theme: 'light', exportFormat: 'css' };
+
+/* ============================================================
+   COLOR RENDERING
+   ============================================================ */
+
+function pairBgFg(token, mode) {
+  const ownVal = mode === 'dark' ? token.dark : token.light;
+  if (token.against === 'white-or-black') {
+    const cw = contrastRatio(ownVal, '#ffffff');
+    const cb = contrastRatio(ownVal, '#000000');
+    return cw > cb
+      ? { bg: ownVal, fg: '#ffffff', label: 'on swatch · white text' }
+      : { bg: ownVal, fg: '#000000', label: 'on swatch · black text' };
+  }
+  const isSurface = token.name.endsWith('-bg') || token.name.startsWith('--neutral-');
+  const otherVal = tokenValue(token.against, mode);
+  if (!otherVal) return { bg: ownVal, fg: '#000', label: '—' };
+  if (isSurface) return { bg: ownVal,   fg: otherVal, label: `text: ${token.against}` };
+  else           return { bg: otherVal, fg: ownVal,   label: `on ${token.against}` };
+}
+
+function renderColorGroup(groupKey) {
+  const grid = document.querySelector(`[data-color-group="${groupKey}"]`);
+  if (!grid) return;
+  grid.replaceChildren();
+  for (const tok of COLORS[groupKey]) {
+    const val = state.theme === 'dark' ? tok.dark : tok.light;
+    const { bg, fg, label } = pairBgFg(tok, state.theme);
+    const ratio = contrastRatio(bg, fg);
+    const ratioStr = ratio.toFixed(2) + ':1';
+    const cls = contrastBadgeClass(ratio);
+
+    const chip = el('div', { class: 'chip', style: `background:${bg};` },
+      el('span', { class: 'pair', style: `color:${fg};` }, 'Aa')
+    );
+    const meta = el('div', { class: 'meta' },
+      el('span', { class: 'name' }, tok.name),
+      el('span', { class: 'value' }, formatColor(val, state.format)),
+      el('span', { class: 'contrast', title: 'WCAG body text needs 4.5:1, large text/UI 3:1' },
+        el('span', { class: 'badge ' + cls }, ratioStr),
+        el('span', { class: 'label' }, label)
+      ),
+      el('span', { class: 'role' }, tok.role)
+    );
+    const btn = el('button',
+      { class: 'swatch', type: 'button', 'data-copy': `var(${tok.name})`,
+        'aria-label': `Copy ${tok.name}, value ${val}` },
+      chip, meta
+    );
+    grid.appendChild(btn);
+  }
+}
+
+function renderAllColors() {
+  for (const k of Object.keys(COLORS)) renderColorGroup(k);
+}
+
+/* ============================================================
+   TYPE / SPACING / RADII / SHADOWS / MOTION
+   ============================================================ */
+
+function renderType() {
+  const tbody = document.querySelector('#type-table tbody');
+  tbody.replaceChildren();
+  for (const size of TYPE_SIZES) {
+    for (const w of TYPE_WEIGHTS) {
+      const useCase = TYPE_USES[size];
+      const text = `${useCase} ${w}`;
+      const tr = el('tr',
+        { class: 'row-copy', 'data-copy': `font-size: var(--fs-${size}); font-weight: var(--fw-${w});`,
+          'aria-label': `Copy size ${size} weight ${w}` },
+        el('td', null,
+          el('span', { class: `specimen weight-${w}`, style: `font-size:${size}px;` }, text)
+        ),
+        el('td', { class: 'var' }, `--fs-${size}, --fw-${w}`),
+        el('td', { class: 'value' }, `${size}px`),
+        el('td', { class: 'value' }, String(w))
+      );
+      tbody.appendChild(tr);
+    }
+  }
+}
+
+function renderSpacing() {
+  const tbody = document.querySelector('#spacing-table tbody');
+  tbody.replaceChildren();
+  const max = Math.max(...SPACING);
+  for (const s of SPACING) {
+    const tr = el('tr',
+      { class: 'row-copy', 'data-copy': `var(--space-${s})` },
+      el('td', { class: 'var' }, `--space-${s}`),
+      el('td', { class: 'value' }, `${s}px`),
+      el('td', null, el('span', { class: 'space-bar', style: `width:${(s/max)*100}%;` }))
+    );
+    tbody.appendChild(tr);
+  }
+}
+
+function renderRadii() {
+  const tbody = document.querySelector('#radii-table tbody');
+  tbody.replaceChildren();
+  for (const r of RADII) {
+    const tr = el('tr',
+      { class: 'row-copy', 'data-copy': `var(${r.name})` },
+      el('td', { class: 'var' }, r.name),
+      el('td', { class: 'value' }, r.value),
+      el('td', null, el('span', { class: 'radius-box', style: `border-radius:${r.value};` })),
+      el('td', null, r.use)
+    );
+    tbody.appendChild(tr);
+  }
+}
+
+function renderShadows() {
+  const tbody = document.querySelector('#shadows-table tbody');
+  tbody.replaceChildren();
+  for (const s of SHADOWS) {
+    const val = state.theme === 'dark' ? s.dark : s.light;
+    const tr = el('tr',
+      { class: 'row-copy', 'data-copy': `var(${s.name})` },
+      el('td', { class: 'var' }, s.name),
+      el('td', null, el('span', { class: 'shadow-box', style: `box-shadow:${val};` })),
+      el('td', null, s.use)
+    );
+    tbody.appendChild(tr);
+  }
+}
+
+function renderMotion() {
+  const tbody = document.querySelector('#motion-table tbody');
+  tbody.replaceChildren();
+  for (const m of MOTION) {
+    const previewStyle = m.type === 'duration'
+      ? `--motion-duration:${m.value};`
+      : `--motion-duration:1200ms; --motion-ease:${m.value};`;
+    const tr = el('tr',
+      { class: 'row-copy', 'data-copy': `var(${m.name})` },
+      el('td', { class: 'var' }, m.name),
+      el('td', { class: 'value' }, m.value),
+      el('td', null, el('div', { class: 'motion-preview', style: previewStyle })),
+      el('td', null, m.use)
+    );
+    tbody.appendChild(tr);
+  }
+}
+
+/* ============================================================
+   COPY HANDLING
+   ============================================================ */
+
+const toast = document.getElementById('toast');
+let toastTimer;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly',''); ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+document.addEventListener('click', async (e) => {
+  const target = e.target.closest('[data-copy]');
+  if (!target) return;
+  const text = target.getAttribute('data-copy');
+  const ok = await copyText(text);
+  if (ok) {
+    target.classList.add('copied');
+    setTimeout(() => target.classList.remove('copied'), 800);
+    showToast(`Copied: ${text}`);
+  } else {
+    showToast('Copy failed — select and copy manually');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const t = e.target;
+  if (t.matches && t.matches('tr.row-copy')) { e.preventDefault(); t.click(); }
+});
+function makeRowsFocusable() {
+  document.querySelectorAll('tr.row-copy').forEach(tr => tr.setAttribute('tabindex', '0'));
+}
+
+/* ============================================================
+   FORMAT TOGGLE
+   ============================================================ */
+document.querySelectorAll('[data-format]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.format = btn.getAttribute('data-format');
+    document.querySelectorAll('[data-format]').forEach(b =>
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false')
+    );
+    renderAllColors();
+  });
+});
+
+/* ============================================================
+   THEME TOGGLE
+   ============================================================ */
+const themeBtn = document.getElementById('theme-toggle');
+themeBtn.addEventListener('click', () => {
+  state.theme = state.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', state.theme);
+  themeBtn.setAttribute('aria-pressed', state.theme === 'dark' ? 'true' : 'false');
+  themeBtn.textContent = state.theme === 'dark' ? 'Light' : 'Dark';
+  renderAllColors();
+  renderShadows();
+});
+
+/* ============================================================
+   EXPORT
+   ============================================================ */
+function buildCss() {
+  const lines = [];
+  lines.push('/* Light mode (default) */', ':root {');
+  for (const [group, items] of Object.entries(COLORS)) {
+    lines.push(`  /* ${group} */`);
+    for (const t of items) lines.push(`  ${t.name}: ${t.light};`);
+  }
+  lines.push('  /* type */');
+  lines.push(`  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;`);
+  for (const s of TYPE_SIZES)   lines.push(`  --fs-${s}: ${s}px;`);
+  for (const w of TYPE_WEIGHTS) lines.push(`  --fw-${w}: ${w};`);
+  lines.push('  /* spacing */');
+  for (const s of SPACING) lines.push(`  --space-${s}: ${s}px;`);
+  lines.push('  /* radii */');
+  for (const r of RADII)   lines.push(`  ${r.name}: ${r.value};`);
+  lines.push('  /* shadows */');
+  for (const s of SHADOWS) lines.push(`  ${s.name}: ${s.light};`);
+  lines.push('  /* motion */');
+  for (const m of MOTION)  lines.push(`  ${m.name}: ${m.value};`);
+  lines.push('}', '', '/* Dark mode */', '[data-theme="dark"] {');
+  for (const [group, items] of Object.entries(COLORS)) {
+    lines.push(`  /* ${group} */`);
+    for (const t of items) lines.push(`  ${t.name}: ${t.dark};`);
+  }
+  lines.push('  /* shadows */');
+  for (const s of SHADOWS) lines.push(`  ${s.name}: ${s.dark};`);
+  lines.push('}');
+  return lines.join('\n');
+}
+
+function buildJson() {
+  const out = {
+    color: { light: {}, dark: {} },
+    typography: {
+      fontFamily: { sans: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' },
+      fontSize: Object.fromEntries(TYPE_SIZES.map(s => [s, `${s}px`])),
+      fontWeight: Object.fromEntries(TYPE_WEIGHTS.map(w => [w, w])),
+    },
+    spacing: Object.fromEntries(SPACING.map(s => [s, `${s}px`])),
+    radius: Object.fromEntries(RADII.map(r => [r.name.replace('--radius-',''), r.value])),
+    shadow: { light: {}, dark: {} },
+    motion: { duration: {}, easing: {} },
+  };
+  for (const items of Object.values(COLORS)) {
+    for (const t of items) {
+      out.color.light[t.name.replace('--','')] = t.light;
+      out.color.dark[t.name.replace('--','')]  = t.dark;
+    }
+  }
+  for (const s of SHADOWS) {
+    out.shadow.light[s.name.replace('--shadow-','')] = s.light;
+    out.shadow.dark[s.name.replace('--shadow-','')]  = s.dark;
+  }
+  for (const m of MOTION) {
+    if (m.type === 'duration') out.motion.duration[m.name.replace('--duration-','')] = m.value;
+    else                       out.motion.easing[m.name.replace('--ease-','')]       = m.value;
+  }
+  return JSON.stringify(out, null, 2);
+}
+
+const exportModal  = document.getElementById('export-modal');
+const exportOutput = document.getElementById('export-output');
+function refreshExport() {
+  exportOutput.textContent = state.exportFormat === 'json' ? buildJson() : buildCss();
+}
+document.getElementById('export-btn').addEventListener('click', () => {
+  refreshExport();
+  exportModal.classList.add('open');
+  document.getElementById('copy-export').focus();
+});
+document.getElementById('close-export').addEventListener('click', () => exportModal.classList.remove('open'));
+exportModal.addEventListener('click', (e) => { if (e.target === exportModal) exportModal.classList.remove('open'); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && exportModal.classList.contains('open')) exportModal.classList.remove('open');
+});
+document.querySelectorAll('[data-export-format]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.exportFormat = btn.getAttribute('data-export-format');
+    document.querySelectorAll('[data-export-format]').forEach(b =>
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false')
+    );
+    refreshExport();
+  });
+});
+document.getElementById('copy-export').addEventListener('click', async () => {
+  const ok = await copyText(exportOutput.textContent);
+  showToast(ok ? `Copied ${state.exportFormat.toUpperCase()} tokens` : 'Copy failed');
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+renderAllColors();
+renderType();
+renderSpacing();
+renderRadii();
+renderShadows();
+renderMotion();
+makeRowsFocusable();
+</script>
+</body>
+</html>

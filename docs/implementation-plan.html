@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Auth Migration Plan — Sessions to JWT (6 weeks)</title>
+<style>
+  :root {
+    --bg: #f6f6f4;
+    --panel: #ffffff;
+    --ink: #14161a;
+    --ink-2: #3a3f47;
+    --ink-3: #5a606b;
+    --line: #e3e3df;
+    --line-strong: #cfcec8;
+    --accent: #1f4ad8;
+    --accent-soft: #e6ecff;
+    --ok: #176c3b;
+    --ok-soft: #e1f3e7;
+    --warn: #8a5a00;
+    --warn-soft: #fcefcd;
+    --crit: #a4231a;
+    --crit-soft: #fbe2df;
+    --info: #1f4ad8;
+    --info-soft: #e6ecff;
+    --code-bg: #14161a;
+    --code-ink: #e8e6df;
+    --shadow: 0 1px 0 rgba(20,22,26,0.04), 0 1px 2px rgba(20,22,26,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1014;
+      --panel: #16181d;
+      --ink: #ececea;
+      --ink-2: #c8c9c4;
+      --ink-3: #9a9b95;
+      --line: #2a2c33;
+      --line-strong: #3a3d45;
+      --accent: #8aa6ff;
+      --accent-soft: #1b2447;
+      --ok: #6cd49a;
+      --ok-soft: #14301f;
+      --warn: #f0c468;
+      --warn-soft: #3a2a07;
+      --crit: #ff8278;
+      --crit-soft: #3a1614;
+      --info: #8aa6ff;
+      --info-soft: #1b2447;
+      --code-bg: #0a0b0e;
+      --code-ink: #d6d4cd;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 22px 80px; }
+
+  header.doc {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px;
+    margin-bottom: 24px;
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+  h1 {
+    font-size: clamp(24px, 3.4vw, 34px);
+    line-height: 1.15;
+    margin: 6px 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--ink-2); margin: 0; max-width: 70ch; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 10px 18px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+  .meta b { color: var(--ink-2); font-weight: 600; }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 14px 0 0;
+  }
+  button.btn, a.btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    min-height: 40px;
+  }
+  button.btn:hover, a.btn:hover { border-color: var(--ink-3); }
+  button.btn:focus-visible, a.btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button.btn.primary {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .btn .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ok);
+    display: none;
+  }
+  .btn.copied .dot { display: inline-block; }
+
+  section.block {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 18px 0;
+    box-shadow: var(--shadow);
+  }
+  section.block > h2 {
+    font-size: 18px;
+    margin: 0 0 4px;
+    letter-spacing: -0.005em;
+  }
+  section.block > .lede {
+    color: var(--ink-3);
+    margin: 0 0 14px;
+    font-size: 14px;
+  }
+
+  /* TL;DR grid */
+  .tldr {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .tldr .cell {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--bg);
+  }
+  .tldr .k {
+    font-size: 12px; color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: .06em;
+    font-weight: 600;
+  }
+  .tldr .v {
+    font-size: 15px; color: var(--ink); margin-top: 2px;
+    font-weight: 500;
+  }
+
+  /* Architecture SVG */
+  .arch-wrap { overflow-x: auto; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .legend .swatch {
+    display: inline-block; width: 14px; height: 14px;
+    vertical-align: -2px; margin-right: 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+  }
+
+  /* Phases */
+  .phase-list {
+    display: grid; gap: 12px;
+    margin-top: 8px;
+  }
+  details.phase {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  details.phase[open] { background: var(--panel); }
+  details.phase > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 14px; align-items: center;
+  }
+  details.phase > summary::-webkit-details-marker { display: none; }
+  details.phase > summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .phase-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--ink); color: var(--bg);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase-title { font-weight: 600; font-size: 16px; }
+  .phase-sub { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+  .phase-meta {
+    font-size: 12px; color: var(--ink-3);
+    text-align: right; line-height: 1.35;
+  }
+  .phase-body {
+    padding: 0 16px 18px 66px;
+    border-top: 1px solid var(--line);
+    margin-top: 4px;
+    padding-top: 14px;
+  }
+  .phase-body h4 {
+    margin: 14px 0 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-3);
+  }
+  .phase-body ul, .phase-body ol {
+    margin: 4px 0 0; padding-left: 22px;
+  }
+  .phase-body li { margin-bottom: 4px; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  thead th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-3);
+    background: var(--bg);
+    border-bottom: 1px solid var(--line-strong);
+    position: sticky; top: 0;
+  }
+  td code, .path {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+  }
+  .scroll-x { overflow-x: auto; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    line-height: 1.6;
+    white-space: nowrap;
+  }
+  .badge::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .badge.crit  { color: var(--crit); background: var(--crit-soft); border-color: color-mix(in srgb, var(--crit) 30%, transparent); }
+  .badge.warn  { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+  .badge.info  { color: var(--info); background: var(--info-soft); border-color: color-mix(in srgb, var(--info) 30%, transparent); }
+  .badge.ok    { color: var(--ok);   background: var(--ok-soft);   border-color: color-mix(in srgb, var(--ok)   30%, transparent); }
+  .badge.muted { color: var(--ink-3); background: var(--bg); border-color: var(--line-strong); }
+  .badge.muted::before { background: var(--ink-3); }
+
+  /* Filters */
+  .filterbar {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 10px 0 14px;
+  }
+  .filterbar button {
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    color: var(--ink-2);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit; font-size: 13px;
+    cursor: pointer;
+    min-height: 36px;
+  }
+  .filterbar button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .filterbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Timeline */
+  .timeline {
+    display: grid;
+    grid-template-columns: 90px repeat(6, 1fr);
+    gap: 4px;
+    margin: 10px 0 4px;
+    font-size: 12px;
+  }
+  .timeline .week-head, .timeline .row-head {
+    color: var(--ink-3);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: 6px 4px;
+  }
+  .timeline .row-head {
+    color: var(--ink-2);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    font-size: 13px;
+  }
+  .timeline .bar {
+    height: 26px;
+    background: var(--line);
+    border-radius: 4px;
+    position: relative;
+  }
+  .timeline .bar.active {
+    background: var(--accent);
+    color: white;
+  }
+  .timeline .bar.active.warn { background: var(--warn); }
+  .timeline .bar.active.crit { background: var(--crit); }
+  .timeline .bar.active.ok   { background: var(--ok); }
+  .timeline .bar span {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 600;
+    color: white;
+    padding: 0 6px;
+  }
+
+  /* Verification checklist */
+  .check {
+    list-style: none;
+    padding: 0; margin: 0;
+    display: grid; gap: 6px;
+  }
+  .check li {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 10px;
+    align-items: start;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+  }
+  .check input[type=checkbox] {
+    margin-top: 3px;
+    width: 18px; height: 18px;
+    accent-color: var(--accent);
+  }
+  .check label { cursor: pointer; }
+  .check small { color: var(--ink-3); display: block; margin-top: 2px; }
+
+  /* Out of scope */
+  .nogoals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+  }
+  .nogoals .item {
+    border: 1px dashed var(--line-strong);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--ink-2);
+    font-size: 14px;
+    background: var(--bg);
+  }
+  .nogoals .item b { color: var(--ink); }
+
+  /* Footnote */
+  footer.doc {
+    color: var(--ink-3);
+    font-size: 13px;
+    margin-top: 24px;
+    text-align: center;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 22px; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease, transform .15s ease;
+    z-index: 50;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { transition: none; }
+  }
+
+  /* small screens */
+  @media (max-width: 700px) {
+    .timeline { grid-template-columns: 70px repeat(6, 1fr); font-size: 10px; }
+    .timeline .bar { height: 22px; }
+    details.phase > summary { grid-template-columns: 28px 1fr; row-gap: 6px; }
+    .phase-num { width: 26px; height: 26px; font-size: 12px; }
+    .phase-meta { grid-column: 1 / -1; text-align: left; }
+    .phase-body { padding-left: 16px; }
+  }
+
+  .sr { position: absolute; left: -9999px; }
+  ::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <div class="eyebrow">Implementation plan</div>
+  <h1>Auth migration: session cookies to JWT</h1>
+  <p class="subtitle">Phased plan to move web, mobile, and three internal services off session cookies onto a JWT-based scheme over six weeks, without breaking existing sign-ins.</p>
+  <div class="meta">
+    <span><b>Timebox:</b> 6 weeks</span>
+    <span><b>Surfaces:</b> web, mobile, orders, billing, notifications</span>
+    <span><b>Owner:</b> TBD</span>
+    <span><b>Status:</b> draft</span>
+  </div>
+  <div class="toolbar" role="toolbar" aria-label="Export">
+    <button class="btn primary" id="copy-md" type="button">
+      <span class="dot" aria-hidden="true"></span>
+      Copy as Markdown
+    </button>
+    <button class="btn" id="copy-checklist" type="button">
+      <span class="dot" aria-hidden="true"></span>
+      Copy verification checklist
+    </button>
+    <button class="btn" id="print" type="button">Print / save as PDF</button>
+  </div>
+</header>
+
+<section class="block" aria-labelledby="tldr-h">
+  <h2 id="tldr-h">TL;DR</h2>
+  <p class="lede">What we're doing, on what cadence, and why it's safe to run live.</p>
+  <div class="tldr">
+    <div class="cell"><div class="k">Approach</div><div class="v">Dual-mode: services accept both session cookies and JWTs during transition</div></div>
+    <div class="cell"><div class="k">Token shape</div><div class="v">Short-lived access JWT + opaque rotating refresh token</div></div>
+    <div class="cell"><div class="k">Cutover style</div><div class="v">Gradual flag-driven rollout per surface, not a big-bang switch</div></div>
+    <div class="cell"><div class="k">Rollback</div><div class="v">Feature flag flips clients back to cookie auth; sessions kept warm until week 6</div></div>
+    <div class="cell"><div class="k">Hard prereq</div><div class="v">Auth service issues + verifies JWTs before any client switches</div></div>
+    <div class="cell"><div class="k">Done when</div><div class="v">Cookie code paths removed and traffic on JWTs is &gt;99% for 7 days</div></div>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="ctx-h">
+  <h2 id="ctx-h">Context</h2>
+  <p class="lede">Why this work, and what it changes for users.</p>
+  <p>Today, every surface authenticates via server-managed session cookies issued by <span class="path">services/auth/</span>. Mobile already pays a tax simulating cookie storage; the three internal services share session validation logic that's drifted slightly between them. Moving to JWT lets each service verify locally with a public key, removes the synchronous cookie lookup on every internal call, and gives mobile a first-class token model.</p>
+  <p>The migration is risky for one reason: auth touches every request. The plan is therefore <b>additive first, subtractive last</b> &mdash; we issue and accept JWTs alongside cookies, ramp traffic, and only remove cookie code after the new path is boring.</p>
+</section>
+
+<section class="block" aria-labelledby="arch-h">
+  <h2 id="arch-h">Target architecture</h2>
+  <p class="lede">End-state token flow. Dashed arrows are removed in week 6.</p>
+  <div class="arch-wrap" role="img" aria-label="Architecture diagram showing web and mobile clients obtaining a JWT from the auth service and presenting it to orders, billing, and notifications, which verify via a shared JWKS endpoint">
+    <svg viewBox="0 0 980 360" width="100%" height="auto" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+        <style><![CDATA[
+          .nd { fill: var(--panel); stroke: var(--line-strong); stroke-width: 1.2; }
+          .nd-auth { fill: var(--accent-soft); stroke: var(--accent); }
+          .nd-store { fill: var(--bg); stroke: var(--line-strong); }
+          .lbl { font: 600 13px ui-sans-serif, system-ui, sans-serif; fill: var(--ink); }
+          .sub { font: 500 11px ui-sans-serif, system-ui, sans-serif; fill: var(--ink-3); }
+          .edge { stroke: var(--ink-2); stroke-width: 1.4; fill: none; color: var(--ink-2); }
+          .edge-old { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 5 4; fill: none; color: var(--ink-3); }
+          .edge-jwt { stroke: var(--accent); stroke-width: 1.6; fill: none; color: var(--accent); }
+          .pill { font: 600 10px ui-monospace, monospace; fill: var(--ink-2); }
+        ]]></style>
+      </defs>
+
+      <!-- Clients -->
+      <g>
+        <rect class="nd" x="20" y="40" width="150" height="60" rx="8"/>
+        <text class="lbl" x="95" y="68" text-anchor="middle">Web (apps/web/)</text>
+        <text class="sub" x="95" y="86" text-anchor="middle">browser, SSR</text>
+
+        <rect class="nd" x="20" y="140" width="150" height="60" rx="8"/>
+        <text class="lbl" x="95" y="168" text-anchor="middle">Mobile (apps/mobile/)</text>
+        <text class="sub" x="95" y="186" text-anchor="middle">iOS + Android</text>
+      </g>
+
+      <!-- Auth service -->
+      <g>
+        <rect class="nd nd-auth" x="380" y="80" width="220" height="100" rx="10"/>
+        <text class="lbl" x="490" y="110" text-anchor="middle">services/auth/</text>
+        <text class="sub" x="490" y="130" text-anchor="middle">issues access JWT (5 min)</text>
+        <text class="sub" x="490" y="146" text-anchor="middle">+ refresh token (rotating)</text>
+        <text class="sub" x="490" y="162" text-anchor="middle">exposes /jwks.json</text>
+      </g>
+
+      <!-- session store (legacy) -->
+      <g>
+        <ellipse class="nd nd-store" cx="490" cy="290" rx="80" ry="22"/>
+        <text class="sub" x="490" y="287" text-anchor="middle">session store</text>
+        <text class="pill" x="490" y="302" text-anchor="middle">REMOVED W6</text>
+      </g>
+
+      <!-- backend services -->
+      <g>
+        <rect class="nd" x="780" y="20" width="180" height="60" rx="8"/>
+        <text class="lbl" x="870" y="48" text-anchor="middle">services/orders/</text>
+        <text class="sub" x="870" y="66" text-anchor="middle">verifies JWT locally</text>
+
+        <rect class="nd" x="780" y="105" width="180" height="60" rx="8"/>
+        <text class="lbl" x="870" y="133" text-anchor="middle">services/billing/</text>
+        <text class="sub" x="870" y="151" text-anchor="middle">verifies JWT locally</text>
+
+        <rect class="nd" x="780" y="190" width="180" height="60" rx="8"/>
+        <text class="lbl" x="870" y="218" text-anchor="middle">services/notifications/</text>
+        <text class="sub" x="870" y="236" text-anchor="middle">verifies JWT locally</text>
+      </g>
+
+      <!-- edges: client -> auth (login) -->
+      <path class="edge" d="M 170 70 Q 280 70 380 110" marker-end="url(#arr)"/>
+      <text class="pill" x="270" y="62">login -> JWT + refresh</text>
+
+      <path class="edge" d="M 170 170 Q 280 170 380 150" marker-end="url(#arr)"/>
+      <text class="pill" x="270" y="186">login -> JWT + refresh</text>
+
+      <!-- edges: client -> backend (Authorization: Bearer) -->
+      <path class="edge-jwt" d="M 170 60 C 460 -10 700 -10 780 35" marker-end="url(#arr)"/>
+      <text class="pill" x="500" y="14">Authorization: Bearer ... (JWT)</text>
+
+      <path class="edge-jwt" d="M 170 180 C 460 240 700 220 780 220" marker-end="url(#arr)"/>
+      <text class="pill" x="500" y="270">Authorization: Bearer ... (JWT)</text>
+
+      <!-- edges: backend -> JWKS -->
+      <path class="edge" d="M 780 50 C 700 80 620 100 600 110" marker-end="url(#arr)" />
+      <path class="edge" d="M 780 135 C 700 130 620 130 600 130" marker-end="url(#arr)" />
+      <path class="edge" d="M 780 220 C 700 180 620 155 600 155" marker-end="url(#arr)" />
+      <text class="pill" x="640" y="82">fetches /jwks.json (cached)</text>
+
+      <!-- legacy edges -->
+      <path class="edge-old" d="M 490 180 L 490 268" marker-end="url(#arr)"/>
+      <text class="pill" x="500" y="225" fill="currentColor">legacy session lookup</text>
+    </svg>
+  </div>
+  <div class="legend" aria-hidden="true">
+    <span><span class="swatch" style="background: var(--accent-soft); border-color: var(--accent);"></span>Auth service</span>
+    <span><span class="swatch" style="background: var(--panel);"></span>Service / client</span>
+    <span><span class="swatch" style="background: var(--bg);"></span>Datastore (legacy)</span>
+    <span><span class="swatch" style="background: var(--accent);"></span>JWT path (new)</span>
+    <span><span class="swatch" style="background: repeating-linear-gradient(90deg, var(--ink-3) 0 3px, transparent 3px 6px);"></span>Removed in week 6</span>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="tl-h">
+  <h2 id="tl-h">Six-week timeline</h2>
+  <p class="lede">Each row spans the weeks where work for that surface is in flight. Color marks risk pressure.</p>
+  <div class="timeline" aria-hidden="true">
+    <div class="week-head"></div>
+    <div class="week-head">W1</div><div class="week-head">W2</div><div class="week-head">W3</div>
+    <div class="week-head">W4</div><div class="week-head">W5</div><div class="week-head">W6</div>
+
+    <div class="row-head">Auth service</div>
+    <div class="bar active warn" style="grid-column: span 2;"><span>Issuer + JWKS + dual-accept</span></div>
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar active crit"><span>Remove cookie code</span></div>
+
+    <div class="row-head">Internal services</div>
+    <div class="bar"></div>
+    <div class="bar active" style="grid-column: span 2;"><span>JWT verify lib + rollout</span></div>
+    <div class="bar"></div><div class="bar"></div>
+    <div class="bar active crit"><span>Remove cookie path</span></div>
+
+    <div class="row-head">Web</div>
+    <div class="bar"></div><div class="bar"></div>
+    <div class="bar active"><span>Token client</span></div>
+    <div class="bar active warn"><span>Ramp 1->100%</span></div>
+    <div class="bar"></div><div class="bar active ok"><span>Cleanup</span></div>
+
+    <div class="row-head">Mobile</div>
+    <div class="bar"></div><div class="bar"></div>
+    <div class="bar active"><span>Token client</span></div>
+    <div class="bar active warn" style="grid-column: span 2;"><span>Staged release + ramp</span></div>
+    <div class="bar active ok"><span>Cleanup</span></div>
+
+    <div class="row-head">Verify / cutover</div>
+    <div class="bar active info"><span>Metrics + dashboards</span></div>
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar active warn"><span>Cookie deprecation gate</span></div>
+    <div class="bar active crit"><span>Final cutover</span></div>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="phases-h">
+  <h2 id="phases-h">Phased rollout</h2>
+  <p class="lede">Click a phase to expand. Each phase lists what changes, where in the codebase, and how we know it landed.</p>
+  <div class="phase-list">
+
+    <details class="phase" open>
+      <summary>
+        <div class="phase-num">1</div>
+        <div>
+          <div class="phase-title">Foundation in the auth service (week 1&ndash;2)</div>
+          <div class="phase-sub">Issue JWTs and publish JWKS without changing any client behaviour.</div>
+        </div>
+        <div class="phase-meta">Owner: TBD<br>Risk: medium</div>
+      </summary>
+      <div class="phase-body">
+        <h4>Goals</h4>
+        <ul>
+          <li>Add a JWT signing key (asymmetric, e.g. RS256 or EdDSA) and a JWKS endpoint at <span class="path">services/auth/jwks.json</span>.</li>
+          <li>Issue a short-lived access token (~5 min) and a rotating opaque refresh token on successful login.</li>
+          <li>Continue setting the existing session cookie unchanged; new tokens are returned in the login response body in addition.</li>
+          <li>Add a token introspection / verify helper used by internal services.</li>
+        </ul>
+        <h4>Code touchpoints</h4>
+        <ul>
+          <li><span class="path">services/auth/</span>: signing keys, key rotation hook, JWKS handler, refresh-token store, claims schema.</li>
+          <li>Shared lib (new): <span class="path">services/auth/lib/jwt-verify</span> consumed by other services in phase 2.</li>
+        </ul>
+        <h4>Verification</h4>
+        <ul>
+          <li>Unit tests on issuer + verifier covering expiry, clock skew, wrong key, malformed token.</li>
+          <li>Staging smoke: log in, decode token, verify against JWKS, refresh once, revoke refresh.</li>
+          <li>No production traffic shift in this phase.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary>
+        <div class="phase-num">2</div>
+        <div>
+          <div class="phase-title">Backends accept JWT alongside cookies (week 2&ndash;3)</div>
+          <div class="phase-sub">Orders, billing, and notifications start accepting either credential.</div>
+        </div>
+        <div class="phase-meta">Owner: TBD<br>Risk: medium</div>
+      </summary>
+      <div class="phase-body">
+        <h4>Goals</h4>
+        <ul>
+          <li>Each service's request middleware looks for <code>Authorization: Bearer</code> first, falls back to session cookie.</li>
+          <li>Verify JWT signature against cached JWKS (cache TTL = 10 min, with key-rotation tolerance).</li>
+          <li>Map JWT claims to the same internal user identity object the rest of the code expects, so handlers don't change.</li>
+          <li>Emit a per-request metric labeled <code>auth_method = jwt | cookie</code>.</li>
+        </ul>
+        <h4>Code touchpoints</h4>
+        <ul>
+          <li><span class="path">services/orders/</span> middleware + tests.</li>
+          <li><span class="path">services/billing/</span> middleware + tests.</li>
+          <li><span class="path">services/notifications/</span> middleware + tests.</li>
+          <li>Shared <span class="path">services/auth/lib/jwt-verify</span> consumed by all three.</li>
+        </ul>
+        <h4>Verification</h4>
+        <ul>
+          <li>Each service's contract tests pass with both auth methods.</li>
+          <li>Synthetic probe sends one JWT request and one cookie request per minute against staging; both 200.</li>
+          <li><code>auth_method</code> metric visible in dashboard with both labels in production traffic before phase 3.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary>
+        <div class="phase-num">3</div>
+        <div>
+          <div class="phase-title">Web client switches to JWT, ramped (week 3&ndash;4)</div>
+          <div class="phase-sub">Web obtains and presents JWTs behind a feature flag, ramped 1% -> 100%.</div>
+        </div>
+        <div class="phase-meta">Owner: TBD<br>Risk: high</div>
+      </summary>
+      <div class="phase-body">
+        <h4>Goals</h4>
+        <ul>
+          <li>Web stores the access token in memory and the refresh token in an <code>HttpOnly; Secure; SameSite=Lax</code> cookie scoped to the auth domain.</li>
+          <li>Authenticated fetches send <code>Authorization: Bearer</code>; refresh on 401 with a single in-flight refresh promise.</li>
+          <li>Feature flag <code>auth.use_jwt</code> ramps 1% &rarr; 10% &rarr; 50% &rarr; 100% with a 24h soak between steps.</li>
+          <li>SSR path also receives the JWT for downstream service calls.</li>
+        </ul>
+        <h4>Code touchpoints</h4>
+        <ul>
+          <li><span class="path">apps/web/</span>: auth client, fetch wrapper, SSR token forwarding, login + logout flows.</li>
+          <li>Flag config in the deployment system; named <code>auth.use_jwt</code>.</li>
+        </ul>
+        <h4>Verification</h4>
+        <ul>
+          <li>401 rate stable or lower at each ramp step (compare 24h vs control cohort).</li>
+          <li>p95 latency on protected routes within +5ms of pre-ramp.</li>
+          <li>No spike in support tickets tagged <code>login</code> or <code>signed-out</code>.</li>
+          <li>Refresh-token rotation success rate &gt;99.5%.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary>
+        <div class="phase-num">4</div>
+        <div>
+          <div class="phase-title">Mobile switches to JWT, staged release (week 3&ndash;5)</div>
+          <div class="phase-sub">Mobile is slower because store review + slow updaters; plan for a long tail.</div>
+        </div>
+        <div class="phase-meta">Owner: TBD<br>Risk: high</div>
+      </summary>
+      <div class="phase-body">
+        <h4>Goals</h4>
+        <ul>
+          <li>Mobile stores access token in memory and refresh token in OS keychain.</li>
+          <li>Network layer adds the bearer header; refresh on 401 with a single coalesced refresh.</li>
+          <li>Ship behind a remote config flag so we can fall back without a new build.</li>
+          <li>Staged store rollout: 5% &rarr; 20% &rarr; 50% &rarr; 100%, gated on crash + 401 rate.</li>
+        </ul>
+        <h4>Code touchpoints</h4>
+        <ul>
+          <li><span class="path">apps/mobile/</span>: auth module, network interceptor, secure storage, login + logout flows.</li>
+          <li>Remote-config flag in same naming scheme as web (<code>auth.use_jwt</code>).</li>
+        </ul>
+        <h4>Verification</h4>
+        <ul>
+          <li>Crash-free sessions match prior week within 0.1%.</li>
+          <li>401 rate flat at each ramp step.</li>
+          <li>Refresh-token rotation success &gt;99% (slightly lower bar than web due to flaky networks).</li>
+          <li>Telemetry shows old-version users still on cookie path are unaffected.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary>
+        <div class="phase-num">5</div>
+        <div>
+          <div class="phase-title">Deprecation gate (week 5)</div>
+          <div class="phase-sub">Cookie path stays available, but is now considered legacy.</div>
+        </div>
+        <div class="phase-meta">Owner: TBD<br>Risk: low</div>
+      </summary>
+      <div class="phase-body">
+        <h4>Goals</h4>
+        <ul>
+          <li>Auth service starts logging cookie-based authentications with a <code>deprecated=true</code> tag.</li>
+          <li>Internal services emit a low-rate warning log when they fall back to cookie verification.</li>
+          <li>Confirm <code>auth_method = jwt</code> is &gt;99% across all three services for 7 consecutive days.</li>
+        </ul>
+        <h4>Code touchpoints</h4>
+        <ul>
+          <li><span class="path">services/auth/</span>: logging + dashboard panel.</li>
+          <li><span class="path">services/orders/</span>, <span class="path">services/billing/</span>, <span class="path">services/notifications/</span>: warning log on fallback.</li>
+        </ul>
+        <h4>Verification</h4>
+        <ul>
+          <li>Dashboard shows JWT share &gt;99% across each service for 7 days.</li>
+          <li>No support escalation tied to the deprecation log noise.</li>
+          <li>Stakeholders sign off on removal.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="phase">
+      <summary>
+        <div class="phase-num">6</div>
+        <div>
+          <div class="phase-title">Cookie removal and cleanup (week 6)</div>
+          <div class="phase-sub">Subtractive step. Only run after the phase 5 gate passes.</div>
+        </div>
+        <div class="phase-meta">Owner: TBD<br>Risk: medium</div>
+      </summary>
+      <div class="phase-body">
+        <h4>Goals</h4>
+        <ul>
+          <li>Remove cookie issuance from <span class="path">services/auth/</span>.</li>
+          <li>Remove cookie verification fallback from each backend service.</li>
+          <li>Drop the <code>auth.use_jwt</code> flag.</li>
+          <li>Decommission the session store after a 7-day grace period of read-only mode.</li>
+          <li>Update onboarding docs and the runbook.</li>
+        </ul>
+        <h4>Code touchpoints</h4>
+        <ul>
+          <li><span class="path">services/auth/</span> session module deleted.</li>
+          <li>Cookie middleware deleted from each backend service.</li>
+          <li><span class="path">apps/web/</span> + <span class="path">apps/mobile/</span> dead branches removed.</li>
+        </ul>
+        <h4>Verification</h4>
+        <ul>
+          <li>Repo grep for old session helpers returns zero hits.</li>
+          <li>End-to-end auth tests pass on a build with the cookie path stripped.</li>
+          <li>Production stable for 48h after removal before flag config is deleted.</li>
+        </ul>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<section class="block" aria-labelledby="touch-h">
+  <h2 id="touch-h">Code touchpoints by surface</h2>
+  <p class="lede">A grep-friendly view: where work lands per service.</p>
+  <div class="scroll-x">
+    <table>
+      <thead>
+        <tr>
+          <th>Path</th>
+          <th>What changes</th>
+          <th>Phase</th>
+          <th>Owner</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="path">services/auth/</td><td>JWT issuer, JWKS endpoint, refresh-token store, key rotation, deprecation logging, cookie removal</td><td>1, 5, 6</td><td>TBD</td></tr>
+        <tr><td class="path">services/auth/lib/jwt-verify</td><td>New shared verify helper; JWKS cache; clock-skew handling</td><td>1</td><td>TBD</td></tr>
+        <tr><td class="path">services/orders/</td><td>Auth middleware accepts JWT, falls back to cookie; metric label; later cookie removal</td><td>2, 6</td><td>TBD</td></tr>
+        <tr><td class="path">services/billing/</td><td>Same middleware + metric + later cookie removal</td><td>2, 6</td><td>TBD</td></tr>
+        <tr><td class="path">services/notifications/</td><td>Same middleware + metric + later cookie removal</td><td>2, 6</td><td>TBD</td></tr>
+        <tr><td class="path">apps/web/</td><td>Auth client, fetch wrapper, SSR token forwarding, login/logout flows</td><td>3, 6</td><td>TBD</td></tr>
+        <tr><td class="path">apps/mobile/</td><td>Auth module, network interceptor, secure-storage, remote-config flag, login/logout flows</td><td>4, 6</td><td>TBD</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="risks-h">
+  <h2 id="risks-h">Risk register</h2>
+  <p class="lede">Filter by severity to see what's actually scary versus what's just paperwork.</p>
+  <div class="filterbar" role="group" aria-label="Filter risks">
+    <button type="button" data-filter="all" aria-pressed="true">All</button>
+    <button type="button" data-filter="crit" aria-pressed="false">Critical</button>
+    <button type="button" data-filter="warn" aria-pressed="false">Warning</button>
+    <button type="button" data-filter="info" aria-pressed="false">Info</button>
+  </div>
+  <div class="scroll-x">
+    <table id="risk-table">
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Risk</th>
+          <th>Why it matters</th>
+          <th>Mitigation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-sev="crit">
+          <td><span class="badge crit">Critical</span></td>
+          <td>Mass sign-out at cutover</td>
+          <td>Mismatched flag state across services could invalidate live sessions.</td>
+          <td>Dual-accept window; ramp via flag, not deploy; keep session store warm until phase 6 verification passes.</td>
+        </tr>
+        <tr data-sev="crit">
+          <td><span class="badge crit">Critical</span></td>
+          <td>Signing-key compromise</td>
+          <td>Anyone with the private key can mint user identities.</td>
+          <td>Asymmetric keys; key stored in KMS; rotation tested in phase 1; revoke + rotate runbook ready before phase 3.</td>
+        </tr>
+        <tr data-sev="warn">
+          <td><span class="badge warn">Warning</span></td>
+          <td>Refresh-token replay</td>
+          <td>Stolen refresh token could mint new access tokens indefinitely.</td>
+          <td>Rotating refresh tokens with reuse detection; on detected reuse, revoke entire token family and force re-login.</td>
+        </tr>
+        <tr data-sev="warn">
+          <td><span class="badge warn">Warning</span></td>
+          <td>Mobile long tail on old builds</td>
+          <td>Some users won't update for weeks; cutting cookies early signs them out.</td>
+          <td>Don't remove cookie path until JWT share &gt;99% for 7 days. Communicate force-update if tail stalls.</td>
+        </tr>
+        <tr data-sev="warn">
+          <td><span class="badge warn">Warning</span></td>
+          <td>Clock skew on backend hosts</td>
+          <td>JWT <code>exp</code> / <code>nbf</code> rejections cause user-visible 401s.</td>
+          <td>Allow 60s skew tolerance in verifier; ensure NTP is healthy on all hosts; alarm on skew.</td>
+        </tr>
+        <tr data-sev="warn">
+          <td><span class="badge warn">Warning</span></td>
+          <td>Token bloat on requests</td>
+          <td>If we stuff roles/permissions into JWT, header size balloons and breaks proxies.</td>
+          <td>Keep JWT claims minimal (sub, exp, iat, sid, aud); fetch authorization details server-side.</td>
+        </tr>
+        <tr data-sev="info">
+          <td><span class="badge info">Info</span></td>
+          <td>JWKS cache thundering herd</td>
+          <td>If cache expires together across services on key rotation, JWKS endpoint spikes.</td>
+          <td>Stagger cache TTL; fetch with jitter; pre-warm on rotation event.</td>
+        </tr>
+        <tr data-sev="info">
+          <td><span class="badge info">Info</span></td>
+          <td>Logging tokens in error traces</td>
+          <td>Authorization headers can leak into stack traces and logs.</td>
+          <td>Redact <code>Authorization</code> header in logger middleware; add a unit test for redaction.</td>
+        </tr>
+        <tr data-sev="info">
+          <td><span class="badge info">Info</span></td>
+          <td>Logout revocation semantics</td>
+          <td>Pure stateless JWT means logout doesn't actually invalidate the access token until it expires.</td>
+          <td>Short access-token lifetime (5 min); refresh revocation list; document the trade-off in the runbook.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="verify-h">
+  <h2 id="verify-h">Verification checklist</h2>
+  <p class="lede">Tick items as they pass. Use "Copy verification checklist" above to paste this into a ticket.</p>
+  <ul class="check" id="check-list">
+    <li>
+      <input type="checkbox" id="v1"/>
+      <label for="v1"><b>Phase 1.</b> JWT issuer, JWKS, and verify lib green in staging.<small>Unit + smoke tests; no prod traffic shifted.</small></label>
+    </li>
+    <li>
+      <input type="checkbox" id="v2"/>
+      <label for="v2"><b>Phase 2.</b> Each backend service accepts both auth methods in production.<small><code>auth_method</code> metric shows both labels with non-zero counts for 24h.</small></label>
+    </li>
+    <li>
+      <input type="checkbox" id="v3"/>
+      <label for="v3"><b>Phase 3.</b> Web at 100% JWT.<small>401 rate flat; p95 latency within +5ms; refresh success &gt;99.5%.</small></label>
+    </li>
+    <li>
+      <input type="checkbox" id="v4"/>
+      <label for="v4"><b>Phase 4.</b> Mobile at 100% JWT on current builds.<small>Crash-free sessions stable; refresh success &gt;99%; long-tail builds still on cookie path are healthy.</small></label>
+    </li>
+    <li>
+      <input type="checkbox" id="v5"/>
+      <label for="v5"><b>Phase 5.</b> JWT share &gt;99% across all services for 7 consecutive days.<small>Cookie deprecation log noise audited; stakeholder sign-off recorded.</small></label>
+    </li>
+    <li>
+      <input type="checkbox" id="v6"/>
+      <label for="v6"><b>Phase 6.</b> Cookie code removed; session store decommissioned.<small>Repo grep for legacy helpers returns zero hits; production stable for 48h post-removal.</small></label>
+    </li>
+    <li>
+      <input type="checkbox" id="v7"/>
+      <label for="v7"><b>Cross-cutting.</b> Runbook + onboarding docs updated; key rotation procedure rehearsed once before week 6.</label>
+    </li>
+  </ul>
+</section>
+
+<section class="block" aria-labelledby="oos-h">
+  <h2 id="oos-h">Out of scope</h2>
+  <p class="lede">Things this plan deliberately does not do.</p>
+  <div class="nogoals">
+    <div class="item"><b>Identity provider swap.</b> We are not moving to a third-party IdP (Auth0, Cognito, etc.) in this window.</div>
+    <div class="item"><b>OAuth2 / OIDC for third parties.</b> External integrations stay on their existing model.</div>
+    <div class="item"><b>SSO / SAML.</b> Untouched.</div>
+    <div class="item"><b>Permissions model rework.</b> Roles and scopes stay the same; only the credential format changes.</div>
+    <div class="item"><b>MFA changes.</b> The MFA flow stays where it is; it now hands off to JWT issuance instead of session creation.</div>
+    <div class="item"><b>Public API tokens.</b> Service-to-service and partner API keys are a separate workstream.</div>
+  </div>
+</section>
+
+<footer class="doc">
+  <div>Draft &middot; owner TBD &middot; iterate in place &middot; HTML artifact, no remote dependencies</div>
+</footer>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">Copied</div>
+
+<script>
+(function () {
+  // ---------- toast ----------
+  var toast = document.getElementById('toast');
+  var toastTimer;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1400);
+  }
+
+  // ---------- copy helper ----------
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  }
+  function flash(btn) {
+    btn.classList.add('copied');
+    setTimeout(function () { btn.classList.remove('copied'); }, 1400);
+  }
+
+  // ---------- markdown export ----------
+  var md = [
+    '# Auth migration: session cookies to JWT',
+    '',
+    'Timebox: 6 weeks. Surfaces: web, mobile, orders, billing, notifications. Owner: TBD.',
+    '',
+    '## TL;DR',
+    '- Approach: dual-mode; services accept both session cookies and JWTs during the transition.',
+    '- Token shape: short-lived access JWT (~5 min) + opaque rotating refresh token.',
+    '- Cutover: gradual flag-driven rollout per surface; no big-bang switch.',
+    '- Rollback: feature flag flips clients back to cookie auth; sessions kept warm until week 6.',
+    '- Hard prereq: auth service issues + verifies JWTs before any client switches.',
+    '- Done when: cookie code paths removed and JWT traffic >99% for 7 days.',
+    '',
+    '## Phases',
+    '',
+    '### Phase 1 — Foundation in the auth service (week 1–2)',
+    'Issue JWTs and publish JWKS without changing client behaviour.',
+    '- Touchpoints: services/auth/, new shared services/auth/lib/jwt-verify.',
+    '- Verify: unit tests on issuer/verifier; staging smoke (login, decode, verify, refresh, revoke); no prod shift.',
+    '',
+    '### Phase 2 — Backends accept JWT alongside cookies (week 2–3)',
+    'Orders, billing, notifications accept either credential.',
+    '- Touchpoints: services/orders/, services/billing/, services/notifications/, shared verify lib.',
+    '- Verify: contract tests pass with both; synthetic probe both paths; auth_method metric shows both labels.',
+    '',
+    '### Phase 3 — Web switches to JWT, ramped (week 3–4)',
+    'Feature flag auth.use_jwt ramps 1% → 10% → 50% → 100% with 24h soak.',
+    '- Touchpoints: apps/web/ auth client, fetch wrapper, SSR token forwarding.',
+    '- Verify: 401 rate flat; p95 within +5ms; refresh success >99.5%; no support spike.',
+    '',
+    '### Phase 4 — Mobile switches to JWT, staged (week 3–5)',
+    'Remote-config flag; staged release 5% → 20% → 50% → 100%.',
+    '- Touchpoints: apps/mobile/ auth module, interceptor, keychain storage.',
+    '- Verify: crash-free sessions stable; 401 rate flat; refresh success >99%.',
+    '',
+    '### Phase 5 — Deprecation gate (week 5)',
+    'Cookie path tagged deprecated. Confirm JWT share >99% for 7 consecutive days.',
+    '- Touchpoints: logging in services/auth/ and the three service middlewares.',
+    '- Verify: dashboard >99% for 7 days; stakeholder sign-off.',
+    '',
+    '### Phase 6 — Cookie removal and cleanup (week 6)',
+    'Subtractive step.',
+    '- Touchpoints: remove cookie issuance from services/auth/, cookie middleware from the three services, dead branches in apps/web/ and apps/mobile/, drop the flag, decommission session store.',
+    '- Verify: repo grep clean; e2e tests on stripped build; 48h prod stability.',
+    '',
+    '## Risks',
+    '- [Critical] Mass sign-out at cutover — dual-accept window; flag-driven ramp; warm session store.',
+    '- [Critical] Signing-key compromise — KMS-stored asymmetric key; rotation rehearsed; revoke runbook.',
+    '- [Warning] Refresh-token replay — rotating refresh tokens with reuse detection.',
+    '- [Warning] Mobile long tail — only remove cookie path after JWT share >99% for 7 days.',
+    '- [Warning] Clock skew — 60s tolerance in verifier; NTP alarms.',
+    '- [Warning] Token bloat — keep JWT claims minimal; fetch authz server-side.',
+    '- [Info] JWKS thundering herd — staggered TTLs; jittered fetch; pre-warm.',
+    '- [Info] Logging tokens — redact Authorization header in logger middleware.',
+    '- [Info] Logout revocation — short access TTL + refresh revocation list.',
+    '',
+    '## Verification',
+    '- [ ] Phase 1 — issuer/JWKS/verify lib green in staging.',
+    '- [ ] Phase 2 — each backend accepts both auth methods in prod (auth_method metric shows both for 24h).',
+    '- [ ] Phase 3 — web at 100% JWT; 401 flat; p95 within +5ms.',
+    '- [ ] Phase 4 — mobile at 100% on current builds; crash-free stable; long-tail healthy.',
+    '- [ ] Phase 5 — JWT share >99% across services for 7 days; sign-off recorded.',
+    '- [ ] Phase 6 — cookie code removed; session store decommissioned; 48h stability.',
+    '- [ ] Cross-cutting — runbook updated; key rotation rehearsed once.',
+    '',
+    '## Out of scope',
+    '- Identity-provider swap (Auth0, Cognito, etc.).',
+    '- OAuth2 / OIDC for third parties.',
+    '- SSO / SAML changes.',
+    '- Permissions model rework.',
+    '- MFA flow changes.',
+    '- Public / partner API tokens.',
+    ''
+  ].join('\n');
+
+  document.getElementById('copy-md').addEventListener('click', function () {
+    var btn = this;
+    copyText(md).then(function () { flash(btn); showToast('Markdown copied'); },
+                       function () { showToast('Copy failed'); });
+  });
+
+  // ---------- checklist export ----------
+  document.getElementById('copy-checklist').addEventListener('click', function () {
+    var btn = this;
+    var lines = ['Auth migration verification checklist', ''];
+    document.querySelectorAll('#check-list li').forEach(function (li) {
+      var cb = li.querySelector('input[type=checkbox]');
+      var label = li.querySelector('label');
+      // Strip nested <small>
+      var clone = label.cloneNode(true);
+      var sm = clone.querySelector('small');
+      var note = sm ? sm.textContent.trim() : '';
+      if (sm) sm.remove();
+      var text = clone.textContent.trim().replace(/\s+/g, ' ');
+      lines.push((cb.checked ? '[x] ' : '[ ] ') + text + (note ? '  — ' + note : ''));
+    });
+    copyText(lines.join('\n')).then(function () { flash(btn); showToast('Checklist copied'); },
+                                     function () { showToast('Copy failed'); });
+  });
+
+  // ---------- print ----------
+  document.getElementById('print').addEventListener('click', function () { window.print(); });
+
+  // ---------- risk filter ----------
+  var filterButtons = document.querySelectorAll('.filterbar [data-filter]');
+  filterButtons.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = b.getAttribute('data-filter');
+      filterButtons.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      document.querySelectorAll('#risk-table tbody tr').forEach(function (tr) {
+        var sev = tr.getAttribute('data-sev');
+        tr.style.display = (f === 'all' || f === sev) ? '' : 'none';
+      });
+    });
+  });
+
+  // ---------- persist checklist state in-memory only (no storage) ----------
+  // No-op; checks reset on reload by design so people don't trust stale state.
+})();
+</script>
+
+</body>
+</html>
