@@ -1,0 +1,544 @@
+{
+  "skill_name": "html-workbench",
+  "description": "Evals for the html-workbench skill. Tests judgment about when to produce an HTML artifact vs. plain Markdown, and the quality of the artifact when HTML is the right call. Each eval includes the user prompt, whether the skill should trigger, the expected artifact type and capabilities, and what should happen if the skill correctly chooses Markdown instead.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "complex-implementation-plan",
+      "prompt": "We're migrating our auth service from session cookies to JWT-based authentication. It powers web, mobile, and three internal services. Plan the migration: phased rollout, code touchpoints (we have services in apps/web/, apps/mobile/, services/auth/, services/orders/, services/billing/), risks, and how we'll verify each phase.",
+      "user_prompt": "We're migrating our auth service from session cookies to JWT-based authentication. It powers web, mobile, and three internal services. Plan the migration: phased rollout, code touchpoints (we have services in apps/web/, apps/mobile/, services/auth/, services/orders/, services/billing/), risks, and how we'll verify each phase.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_implementation_plan",
+      "expected_html_capabilities": ["workflows", "illustrations", "tables", "code", "spatial_layouts"],
+      "expected_features": [
+        "Title plus one-line goal",
+        "Context / motivation section",
+        "Before/after architecture SVG diagrams",
+        "Phased plan with owners, code touchpoints, exit criteria",
+        "Risk register table with severity badges",
+        "Verification plan per phase",
+        "Out-of-scope section",
+        "Sticky table of contents"
+      ],
+      "expected_interactions": [
+        "Collapsible <details> for phase code touchpoints",
+        "Filter risk register by severity",
+        "Click phase milestone scrolls to its section"
+      ],
+      "expected_export_behavior": "Copy plan as Markdown, copy action items as Markdown checklist, copy risks as Markdown table.",
+      "expected_output": "A self-contained HTML implementation plan saved as a .html file, with the structure above. Reader can tell within 30 seconds: what is being built, why, in what order, who owns what, and how completion is verified.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Markdown response missing architecture and risks",
+        "HTML page that buries the 'why'",
+        "Fabricated owners or timelines",
+        "No verification plan",
+        "External script/CDN dependency",
+        "Risks without severity tags"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "pr-review-annotated-diff",
+      "prompt": "Review PR #1834. It refactors our rate limiter from in-process counters to Redis. The PR touches 6 files. I'm worried about the lock acquisition logic in services/limiter/redis_lock.go and want a focused review with severity-tagged concerns and a recommended action. Diff is here: [paste of unified diff with +/- for lines in 6 files].",
+      "user_prompt": "Review PR #1834. It refactors our rate limiter from in-process counters to Redis. The PR touches 6 files. I'm worried about the lock acquisition logic in services/limiter/redis_lock.go and want a focused review with severity-tagged concerns and a recommended action.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_pr_review",
+      "expected_html_capabilities": ["code", "tables", "spatial_layouts", "interaction", "workflows"],
+      "expected_features": [
+        "PR header (number, author, branch, base)",
+        "Recommended action visible above the fold",
+        "Top concerns severity-tagged (blocker, major, minor, nit, praise)",
+        "Sticky sidebar with file list and per-file comment counts",
+        "Annotated diff sections per file",
+        "Inline comments anchored to specific lines",
+        "Reviewer checklist (correctness, tests, security, performance, docs)"
+      ],
+      "expected_interactions": [
+        "Click file in sidebar to scroll to its diff",
+        "Filter inline comments by severity",
+        "Collapse resolved comments"
+      ],
+      "expected_export_behavior": "Copy review summary plus top concerns as Markdown for posting back as a PR comment.",
+      "expected_output": "A self-contained HTML PR review with anchor-linked comments and an exportable Markdown summary.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Recommended action buried at the bottom",
+        "Nits and blockers in the same flat list",
+        "Inline comments without line numbers",
+        "Fabricated diff content when source not provided",
+        "Empty checklist items with no rationale"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "technical-explainer-rate-limiter",
+      "prompt": "Explain how our token-bucket rate limiter works to a new engineer. Include the request lifecycle, the Redis storage layout (key patterns, TTLs), and the failure modes. The code lives in services/limiter/.",
+      "user_prompt": "Explain how our token-bucket rate limiter works to a new engineer. Include the request lifecycle, the Redis storage layout (key patterns, TTLs), and the failure modes. The code lives in services/limiter/.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_technical_explainer",
+      "expected_html_capabilities": ["code", "illustrations", "workflows", "tables", "spatial_layouts"],
+      "expected_features": [
+        "Title plus one-line answer",
+        "Mental model section using a metaphor",
+        "Annotated SVG lifecycle / state diagram",
+        "Step-by-step walk-through with code snippets",
+        "Redis storage layout table",
+        "Edge cases and failure modes",
+        "Glossary collapsed by default",
+        "Pointers back to actual files / functions"
+      ],
+      "expected_interactions": [
+        "Hover diagram node highlights matching code snippet",
+        "Click annotation highlights code line",
+        "Expandable glossary"
+      ],
+      "expected_export_behavior": "Copy explanation as Markdown for onboarding docs.",
+      "expected_output": "Self-contained HTML explainer where a new engineer can describe the rate limiter in their own words after reading.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Code-first ordering with no mental model",
+        "Diagram with no labels or legend",
+        "No edge cases / failure modes section",
+        "No pointer back to actual code files",
+        "Over-explaining trivial code"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "architecture-module-map",
+      "prompt": "I just inherited a marketplace codebase. Walk me through the architecture: services, datastores, request lifecycle for placing an order, and which team owns what. Source layout: services/, apps/web/, apps/mobile/, packages/.",
+      "user_prompt": "I just inherited a marketplace codebase. Walk me through the architecture: services, datastores, request lifecycle for placing an order, and which team owns what.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_architecture_map",
+      "expected_html_capabilities": ["illustrations", "spatial_layouts", "tables", "workflows"],
+      "expected_features": [
+        "Top-level system diagram in SVG",
+        "Consistent shape language with legend (rectangle = service, cylinder = datastore, parallelogram = queue, oval = external)",
+        "Service / module table with name, responsibility, owner, source path, dependencies",
+        "Request lifecycle for 'place order' highlighted in the diagram",
+        "External dependencies section",
+        "Glossary"
+      ],
+      "expected_interactions": [
+        "Click box in diagram scrolls to corresponding row in table",
+        "Filter table by owner team",
+        "Toggle which lifecycle is shown"
+      ],
+      "expected_export_behavior": "Copy module table as JSON. Copy SVG of the diagram. Copy Markdown summary.",
+      "expected_output": "Self-contained HTML architecture map; a new engineer can name every box and trace a request end to end.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Boxes-and-arrows soup with no legend",
+        "Inconsistent shape language",
+        "Missing source paths",
+        "Fabricated services not in the codebase"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "design-system-token-sheet",
+      "prompt": "Document the design tokens for our product (colors, type scale, spacing, radii, shadows, motion durations). Each token should have its CSS variable name, its value, a swatch or specimen, and a contrast number where relevant. Devs need to copy values into code.",
+      "user_prompt": "Document the design tokens for our product (colors, type scale, spacing, radii, shadows, motion durations). Each token should have its CSS variable name, its value, a swatch or specimen, and a contrast number where relevant.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_design_token_sheet",
+      "expected_html_capabilities": ["design", "tables", "spatial_layouts", "interaction"],
+      "expected_features": [
+        "Color palette grouped semantically (brand, neutral, status)",
+        "Type scale with real specimens at real sizes and use-case labels",
+        "Spacing scale visualized as horizontal bars",
+        "Radii, shadows, borders shown as live samples",
+        "Motion tokens with durations and easings",
+        "Token table: variable name, value, where used"
+      ],
+      "expected_interactions": [
+        "Click swatch copies CSS variable",
+        "Switch between hex / RGB / HSL display",
+        "Toggle dark mode"
+      ],
+      "expected_export_behavior": "Copy all tokens as CSS variables; copy as JSON; download tokens.css.",
+      "expected_output": "Self-contained HTML token sheet where every token can be copied directly into code.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "No semantic naming",
+        "No contrast numbers",
+        "Type scale shown with placeholder text instead of real specimens",
+        "Token values inlined in CSS rather than via variables"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "component-variant-sheet",
+      "prompt": "Show me every state and variant of our Button component on one page: primary / secondary / destructive / ghost; sm / md / lg; default / hover / focus / active / disabled. Include accessibility notes and copyable code per variant.",
+      "user_prompt": "Show every state and variant of our Button component on one page (primary / secondary / destructive / ghost, sm / md / lg, default / hover / focus / active / disabled). Include a11y notes and copyable code.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_component_variant_sheet",
+      "expected_html_capabilities": ["design", "spatial_layouts", "code", "interaction"],
+      "expected_features": [
+        "Variant matrix (state x style x size)",
+        "Live rendered components (not screenshots)",
+        "Anatomy diagram with labeled parts",
+        "Accessibility notes (keyboard, ARIA, contrast)",
+        "Usage do's and don'ts",
+        "Code snippet per variant"
+      ],
+      "expected_interactions": [
+        "Click variant copies code",
+        "Toggle dark mode"
+      ],
+      "expected_export_behavior": "Copy variant code as HTML.",
+      "expected_output": "Self-contained HTML component sheet showing every state with contrast numbers and working focus rings.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Showing only one state per variant",
+        "No accessibility notes",
+        "Live components without working focus states",
+        "Missing contrast numbers"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "animation-tuning-sandbox",
+      "prompt": "Build me a sandbox for tuning the entrance animation on our hero card. Sliders for duration, delay, and Y-offset; selects for easing; live preview; copyable CSS at the end.",
+      "user_prompt": "Build me a sandbox for tuning the entrance animation on our hero card: sliders for duration, delay, Y-offset; easing select; live preview; copyable CSS.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_animation_sandbox",
+      "expected_html_capabilities": ["interaction", "code", "design", "workflows"],
+      "expected_features": [
+        "Big preview area centered",
+        "Sliders with units (ms, px)",
+        "Easing select",
+        "Live CSS preview that updates as parameters change",
+        "Reset to default",
+        "Replay button",
+        "prefers-reduced-motion toggle"
+      ],
+      "expected_interactions": [
+        "Live preview update on every parameter change",
+        "Replay button retriggers animation",
+        "Reset button restores defaults"
+      ],
+      "expected_export_behavior": "Copy current CSS keyframes / transition; copy parameters as JSON.",
+      "expected_output": "Self-contained HTML sandbox where every parameter change is felt immediately and the export matches the current values.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Preview too small to feel the motion",
+        "Parameters with no units",
+        "No reduced-motion fallback",
+        "Exported CSS not matching current parameters",
+        "Decorative animation in the chrome that fights with the tuned animation"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "clickable-prototype",
+      "prompt": "Build a clickable prototype of our 4-step onboarding flow: welcome screen, sign-up form, profile setup, success state. I want to click through it and feel the experience. Use realistic copy.",
+      "user_prompt": "Clickable prototype of our 4-step onboarding flow (welcome, sign-up, profile setup, success). Realistic copy, navigable by click.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_clickable_prototype",
+      "expected_html_capabilities": ["interaction", "design", "spatial_layouts", "workflows"],
+      "expected_features": [
+        "Flow map showing screen connections",
+        "Each screen rendered at realistic fidelity with realistic copy",
+        "Hotspots that navigate to the next screen",
+        "'Show hotspots' overlay mode",
+        "Per-screen notes panel",
+        "Breadcrumb / progress indicator showing current step"
+      ],
+      "expected_interactions": [
+        "Click navigates between screens",
+        "Show-hotspots toggle reveals link destinations",
+        "Back button works"
+      ],
+      "expected_export_behavior": "Export flow as JSON (screens, links, notes).",
+      "expected_output": "Self-contained HTML prototype where every screen is reachable and every interactive element does something.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Dead clicks on hotspots",
+        "Lorem ipsum content hiding design decisions",
+        "No flow map",
+        "Mixing fake metrics into realistic copy"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "incident-timeline",
+      "prompt": "Last night we had a 29-minute outage starting at 14:02 UTC. A deploy exhausted DB connections. Recovery at 14:31 UTC. Write the postmortem: timeline, impact panel, root cause chain, action items with owners.",
+      "user_prompt": "Postmortem for last night's 29-minute outage (14:02-14:31 UTC, deploy exhausted DB connections). Timeline, impact panel, root-cause chain, action items.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_incident_report",
+      "expected_html_capabilities": ["workflows", "code", "tables", "illustrations"],
+      "expected_features": [
+        "Headline impact in one sentence",
+        "Impact panel (users affected, duration, region, severity)",
+        "Vertical timeline with UTC timestamps and role tags",
+        "Root-cause chain (5-whys or causal SVG)",
+        "Detection / response analysis",
+        "Action items table (owner, due date, status)",
+        "Appendix with logs and graphs"
+      ],
+      "expected_interactions": [
+        "Filter timeline by role",
+        "Click evidence reference to expand log excerpt",
+        "Sort action items"
+      ],
+      "expected_export_behavior": "Copy timeline as Markdown; copy action items as JSON for ticket import; copy executive summary as a paragraph.",
+      "expected_output": "Self-contained HTML postmortem with non-blame language, all UTC timestamps, and action items that have owners and dates.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Blame-oriented language",
+        "Missing or mixed timezones",
+        "Root cause that stops at the proximate cause",
+        "Action items without owner or date"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "weekly-status-report",
+      "prompt": "Write the weekly status update for the Auth team: shipped, slipped, blocked. Include 3 metrics (login success rate, p95 latency, MFA adoption) with deltas vs. last week, and 2 asks for the leadership audience.",
+      "user_prompt": "Weekly status update for the Auth team: shipped / slipped / blocked, three metric deltas, two asks for leadership.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_weekly_report",
+      "expected_html_capabilities": ["tables", "design", "workflows", "spatial_layouts"],
+      "expected_features": [
+        "Date range",
+        "Executive summary (3-5 bullets)",
+        "Shipped / Slipped / Blocked sections with owners and links",
+        "Metric tiles with delta arrows",
+        "Asks section",
+        "Next week's focus"
+      ],
+      "expected_interactions": [
+        "Filter by team or owner",
+        "Toggle 'since last report' view"
+      ],
+      "expected_export_behavior": "Copy executive summary as Markdown.",
+      "expected_output": "Self-contained HTML weekly report; reader knows in 60 seconds what shipped, slipped, is blocked, and what's being asked.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Burying asks at the bottom",
+        "Metrics without deltas",
+        "No clear definition of 'shipped'",
+        "Fabricated metric numbers"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "slide-deck",
+      "prompt": "Build a 6-slide deck I can present in next week's all-hands: 'How we're rebuilding search.' Cover: problem, current state, target architecture, rollout plan, risks, asks. Keyboard navigable.",
+      "user_prompt": "6-slide deck for all-hands: 'How we're rebuilding search.' Problem, current state, target architecture, rollout, risks, asks. Keyboard navigable.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_slide_deck",
+      "expected_html_capabilities": ["spatial_layouts", "design", "illustrations"],
+      "expected_features": [
+        "Cover slide (title, subtitle, presenter, date)",
+        "Agenda slide",
+        "One idea per slide with large headlines",
+        "Closing / next steps slide",
+        "Slide numbers"
+      ],
+      "expected_interactions": [
+        "Keyboard navigation (left/right/space)",
+        "Fullscreen mode",
+        "Speaker-notes overlay (s key)"
+      ],
+      "expected_export_behavior": "Copy as Markdown outline; print-to-PDF stylesheet for slide-per-page.",
+      "expected_output": "Self-contained HTML slide deck readable from across a room, navigable by keyboard, with one idea per slide.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "Cramming a document onto slides",
+        "Tiny type",
+        "No keyboard nav",
+        "Backgrounds that fight content"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "custom-editor-triage-board",
+      "prompt": "I have 32 bug reports from the sprint. Help me triage each into P0 / P1 / P2 / Won't Do with a one-line reason. I'll copy the result back into Linear when I'm done. Reports: [list of 32 titles + descriptions].",
+      "user_prompt": "Triage 32 bug reports into P0/P1/P2/Won't Do with reasons. I'll copy the result into Linear.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_custom_editor_triage",
+      "expected_html_capabilities": ["interaction", "spatial_layouts", "tables", "workflows", "code"],
+      "expected_features": [
+        "Five columns: Inbox, P0, P1, P2, Won't Do",
+        "Per-card title, severity badge, age, reporter, expandable reason input",
+        "Filter / search bar",
+        "Counts per column",
+        "Always-visible export bar with confirmation pill"
+      ],
+      "expected_interactions": [
+        "Drag-drop between columns",
+        "Keyboard 1-4 to assign focused card",
+        "Bulk select",
+        "Undo last move"
+      ],
+      "expected_export_behavior": "Copy as Markdown table sorted by column; copy as JSON; copy in Linear's bulk-paste format. Export reflects current state including reasons.",
+      "expected_output": "Self-contained HTML triage board where 32 cards can be moved with mouse or keyboard, and the export matches what's on screen.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "No undo",
+        "No keyboard support",
+        "Lossy export (drops reason or column membership)",
+        "Export bar disappears on scroll",
+        "Missing 'unsorted remaining' count"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "prompt-tuner",
+      "prompt": "Help me tune a prompt for our customer-support classifier. I want to edit the system prompt, add few-shot examples, set temperature / top-p / max tokens, and copy the final prompt back into our agent runner.",
+      "user_prompt": "Prompt tuner: edit system prompt, edit few-shot examples, set temperature/top-p/max-tokens, copy final prompt to my agent runner.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_prompt_tuner",
+      "expected_html_capabilities": ["interaction", "code", "tables", "workflows"],
+      "expected_features": [
+        "Resizable prompt textarea",
+        "Parameter sliders with units (temperature, top-p, max tokens)",
+        "Model select",
+        "Few-shot examples editor",
+        "Live token / character count",
+        "Always-visible 'Copy prompt' button"
+      ],
+      "expected_interactions": [
+        "Live token count update",
+        "Reset to last copied",
+        "Diff vs. previous copy"
+      ],
+      "expected_export_behavior": "Copy full prompt plus parameters as a single block; copy as JSON for API use.",
+      "expected_output": "Self-contained HTML prompt tuner where what you copy is exactly what would run.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "No token count",
+        "No diff with previous",
+        "Export missing parameters",
+        "Hard-coded model list with no escape hatch"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "ticket-triage-board-with-keyboard",
+      "prompt": "Build me a feature-flag editor: list all flags with their current value, proposed value, environment, owner, dependency warnings, and a diff summary. I want to edit values, see what changed, and export as JSON or YAML before deploying.",
+      "user_prompt": "Feature-flag editor: list flags, edit values inline, dependency warnings, diff summary, export as JSON / YAML.",
+      "should_trigger_skill": true,
+      "expected_artifact_type": "html_feature_flag_editor",
+      "expected_html_capabilities": ["interaction", "tables", "code", "workflows"],
+      "expected_features": [
+        "Flag list with current and proposed value",
+        "Per-flag: description, rollout %, environment, owner",
+        "Dependency warnings (X requires Y)",
+        "Diff summary (changed vs. unchanged)",
+        "Export bar"
+      ],
+      "expected_interactions": [
+        "Inline edit",
+        "Toggle for boolean flags",
+        "Slider for rollout %",
+        "Validate on blur with conflict detection"
+      ],
+      "expected_export_behavior": "Copy as JSON / YAML; copy diff vs. current; choose whether to include unchanged flags.",
+      "expected_output": "Self-contained HTML feature-flag editor where what you'd deploy matches what you exported.",
+      "expected_non_html_answer_if_not_triggered": null,
+      "files": [],
+      "failure_modes": [
+        "No diff view",
+        "No dependency check",
+        "Export silently drops unchanged flags",
+        "No validation"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "negative-short-answer",
+      "prompt": "What does the `git rebase --onto` flag do?",
+      "user_prompt": "What does git rebase --onto do?",
+      "should_trigger_skill": false,
+      "expected_artifact_type": null,
+      "expected_html_capabilities": [],
+      "expected_features": [],
+      "expected_interactions": [],
+      "expected_export_behavior": null,
+      "expected_output": "A short Markdown answer (1-3 paragraphs) explaining the flag with a tiny example. No HTML file.",
+      "expected_non_html_answer_if_not_triggered": "Plain Markdown explanation: 'git rebase --onto <newbase> <upstream> <branch> moves commits from <branch> that are reachable from <upstream>'s tip onto <newbase>...' with a short usage example. No mention of an artifact.",
+      "files": [],
+      "failure_modes": [
+        "Generating an HTML page for a definitional question",
+        "Adding excessive structure where prose is enough",
+        "Treating this as an opportunity to demo the skill"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "negative-code-only",
+      "prompt": "Write a Python function that takes a list of strings and returns a frequency count as a dict, case-insensitive. Just give me the function.",
+      "user_prompt": "Python function: list of strings to case-insensitive frequency dict. Just the function.",
+      "should_trigger_skill": false,
+      "expected_artifact_type": null,
+      "expected_html_capabilities": [],
+      "expected_features": [],
+      "expected_interactions": [],
+      "expected_export_behavior": null,
+      "expected_output": "A short Python code block in Markdown, possibly one or two lines of explanation. No HTML file.",
+      "expected_non_html_answer_if_not_triggered": "A Markdown code fence with the Python function (e.g., using collections.Counter or a dict comprehension) and at most a sentence of context. The user said 'just give me the function.'",
+      "files": [],
+      "failure_modes": [
+        "Wrapping a one-function answer in an HTML page",
+        "Ignoring 'just the function' and producing a tutorial",
+        "Building an interactive code playground for a 5-line function"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "negative-simple-table",
+      "prompt": "I need a quick comparison: HTTP/1.1 vs HTTP/2 vs HTTP/3 — multiplexing, header compression, transport. 3 columns, 3 rows. Plain text fine.",
+      "user_prompt": "Compare HTTP/1.1 vs 2 vs 3 on multiplexing, header compression, transport. 3 columns, 3 rows. Plain text fine.",
+      "should_trigger_skill": false,
+      "expected_artifact_type": null,
+      "expected_html_capabilities": [],
+      "expected_features": [],
+      "expected_interactions": [],
+      "expected_export_behavior": null,
+      "expected_output": "A small Markdown table (3 rows x 4 columns including the protocol column) and nothing else. No HTML file.",
+      "expected_non_html_answer_if_not_triggered": "A 3x4 Markdown table with HTTP/1.1, HTTP/2, HTTP/3 as rows and Multiplexing, Header compression, Transport as columns. No HTML page.",
+      "files": [],
+      "failure_modes": [
+        "Building a sortable HTML table for 3 rows",
+        "Adding interactive filters to a tiny comparison",
+        "Ignoring 'plain text fine' and producing a styled artifact"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "negative-explicit-markdown-request",
+      "prompt": "Give me a short Markdown summary of the Sapir-Whorf hypothesis — origin, strong vs. weak versions, current consensus. Markdown only, please. I'm pasting it into a doc.",
+      "user_prompt": "Markdown summary of Sapir-Whorf: origin, strong vs. weak, current consensus. Markdown only — pasting into a doc.",
+      "should_trigger_skill": false,
+      "expected_artifact_type": null,
+      "expected_html_capabilities": [],
+      "expected_features": [],
+      "expected_interactions": [],
+      "expected_export_behavior": null,
+      "expected_output": "A short Markdown summary with section headings and prose. No HTML file. Respect the explicit Markdown-only request.",
+      "expected_non_html_answer_if_not_triggered": "Markdown with headings (## Origin, ## Strong vs. weak, ## Current consensus) and a paragraph each. Maximum a few hundred words.",
+      "files": [],
+      "failure_modes": [
+        "Producing an HTML page despite an explicit 'Markdown only' instruction",
+        "Asking the user to override their explicit format request",
+        "Wrapping prose in HTML for no reason"
+      ]
+    }
+  ]
+}

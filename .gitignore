@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+
+# Build artifacts (generated from source — attach to releases instead of committing)
+*.skill
+
+# Eval workspace lives as a sibling directory, not in here, but belt-and-suspenders:
+workspace/
+iteration-*/
+benchmark.json
+benchmark.md
+feedback.json
+
+# Python (used by skill-creator tooling)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local notes
+NOTES.md
+TODO.md
+.scratch/
