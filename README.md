@@ -2,7 +2,18 @@
 
 > An agent-agnostic skill that produces self-contained HTML artifacts — plans, specs, code reviews, explainers, design explorations, prototypes, reports, slide decks, and one-off editing interfaces — when HTML genuinely beats Markdown for the task.
 
-**[→ See live examples of artifacts the skill produces](https://rnnh-code.github.io/html-workbench/)**
+<table>
+  <tr>
+    <td width="50%"><a href="https://rnnh-code.github.io/html-workbench/triage-board.html"><img src="docs/screenshots/triage-board.png" alt="Triage board with five columns (Inbox, P0, P1, P2, Won't Do), bug cards, severity badges, and keyboard shortcut hints"></a><br><sub><em><b>Triage board.</b> Drag-drop or keyboard (1/2/3/4) to assign. Export to JSON or Markdown.</em></sub></td>
+    <td width="50%"><a href="https://rnnh-code.github.io/html-workbench/animation-sandbox.html"><img src="docs/screenshots/animation-sandbox.png" alt="Animation sandbox with duration / delay / Y-offset sliders, easing select, live preview area, and live CSS output panel"></a><br><sub><em><b>Animation sandbox.</b> Sliders for duration, delay, offset, easing. Live preview, copyable CSS.</em></sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="https://rnnh-code.github.io/html-workbench/architecture-map.html"><img src="docs/screenshots/architecture-map.png" alt="Marketplace architecture diagram showing services, datastores, and the place-order request lifecycle, with consistent shape language and color-coded ownership"></a><br><sub><em><b>Architecture map.</b> SVG diagram with consistent shape language plus a filterable module table.</em></sub></td>
+    <td width="50%"><a href="https://rnnh-code.github.io/html-workbench/design-tokens.html"><img src="docs/screenshots/design-tokens.png" alt="Design tokens page showing brand color, neutral ramp, contrast ratios for each token, and a HEX/RGB/HSL toggle"></a><br><sub><em><b>Design tokens.</b> Click-to-copy CSS variables, real contrast ratios, light + dark.</em></sub></td>
+  </tr>
+</table>
+
+**[→ See all 7 live examples](https://rnnh-code.github.io/html-workbench/)**
 
 ## What it does
 
